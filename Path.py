@@ -5,12 +5,18 @@ Path object.
 
 """
 
-import os
 import glob
+import os
+import shutil
 
 class Path:
-    def __init__(self, name):
-        self.name = os.path.abspath(os.path.expanduser(name))
+    def __init__(self, path):
+        if isinstance(path, str):
+            self.name = os.path.abspath(os.path.expanduser(path))
+            return
+        if isinstance(path, Path):
+            self.name = path.name
+            return
 
     def isFile(self):
         """Return if self is a file."""
@@ -54,6 +60,13 @@ class Path:
         """Raise exception if @name not a directory or die."""
         if not Path(name).isDir():
             raise IOError("%s is not a directory" % name)
+
+    @staticmethod
+    def move(src, dst):
+        """Move src to dst."""
+        inPath = Path(src)
+        outPath = Path(dst)
+        shutil.move(inPath.name, outPath.name)
 
 def main():
     path = Path("~/t")
