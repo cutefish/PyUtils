@@ -1,0 +1,17 @@
+#!/usr/bin/python
+
+import sys, imp
+sys.dont_write_bytecode=True
+
+def printUsage():
+    print "pyutils <package name>"
+
+if len(sys.argv) < 2:
+    printUsage()
+
+#modFile, pathName, desc = imp.find_module(sys.argv[1])
+
+#temporary using if clause, to do: using module loading
+import pyutils.cluster.main as clusterMain
+if (sys.argv[1] == "cluster"):
+    clusterMain.run(sys.argv[2:])
