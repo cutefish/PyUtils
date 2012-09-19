@@ -8,6 +8,7 @@ def printUsage():
 
 if len(sys.argv) < 2:
     printUsage()
+    sys.exit(-1)
 
 #modFile, pathName, desc = imp.find_module(sys.argv[1])
 

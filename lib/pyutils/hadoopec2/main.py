@@ -107,6 +107,19 @@ def setMaster(argv):
     mprdKey = 'mapred.job.tracker'
     mprdValue = 'hdfs://%s:9001' %master
     addConf([mprdSite, mprdKey, mprdValue])
+    #change sync master
+    tmpFile = '/tmp/hadoopenvtmp'
+    envFile = '%s/conf/hadoop-env.sh' %hadoopHome
+    tmp = open(tmpFile, 'w')
+    env = open(envFile, 'r')
+    for line in env:
+        if 'HADOOP_MASTER' in line:
+            tmp.write('export HADOOP_MASTER=%s:%s\n' %(master, hadoopHome))
+        else:
+            tmp.write(line)
+    tmp.close()
+    env.close()
+    shutil.move(tmpFile, envFile)
 
 """
 Set slaves file
