@@ -19,3 +19,9 @@ def fileToList(fileName):
             continue
         ret.append(line.strip())
     return ret
+
+def listToFile(fileName, ls):
+    f = open(normalizeName(fileName, 'w'))
+    for l in ls:
+        f.write(str(l) + '\n')
+    f.close()

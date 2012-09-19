@@ -17,5 +17,5 @@ import pyutils.hadoopec2.main as hadoopec2Main
 
 if (sys.argv[1] == "cluster"):
     clusterMain.run(sys.argv[2:])
-elif (sys.argv[1] == "hadoop"):
+elif (sys.argv[1] == "hadoopec2"):
     hadoopec2Main.run(sys.argv[2:])
