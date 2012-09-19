@@ -14,5 +14,6 @@ def run(argv):
         module = cmdDict[argv[0]]
     except:
         print "Availabe command: ", cmdDict.keys()
+        sys.exit(-1)
     module.run(argv)
 
