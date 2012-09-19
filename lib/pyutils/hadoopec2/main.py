@@ -18,8 +18,9 @@ commandList = ["addConf",
                "master",
                "slaves",
                "startCluster",
-               "stopCluster",
-               "terminateCluster",
+               "startInstances",
+               "stopInstances",
+               "termInstances",
               ]
 
 def printUsage():
@@ -38,9 +39,11 @@ def run(argv):
         setSlaves(argv[1:])
     elif (argv[0] == "startCluster"):
         startCluster(argv[1:])
-    elif (argv[0] == "stopCluster"):
+    elif (argv[0] == "startInstances"):
+        startCluster(argv[1:])
+    elif (argv[0] == "stopInstances"):
         stopCluster(argv[1:])
-    elif (argv[0] == "terminateCluster"):
+    elif (argv[0] == "termInstances"):
         terminateCluster(argv[1:])
     else:
         printUsage()
@@ -150,7 +153,7 @@ def setSlaves(argv):
 StartCluster
 """
 def startCluster(argv):
-    if len(argv != 1):
+    if len(argv) != 1:
         print "hadoop startCluster <nodeList>"
         sys.exit(-1)
     nodeList = argv[0]
@@ -198,13 +201,27 @@ def _getInstancesFromRegion(conn):
             ret.append(i)
     return ret
 
+"""
+startInstances
+"""
+def startInstances(argv):
+    if len(argv) != 1:
+        print "hadoop startInstances <regionName>"
+        sys.exit(-1)
+    regionName = argv[0]
+    region = boto.ec2.get_region(regionName)
+    conn = region.connect()
+    instList = _getInstancesFromRegion(conn)
+    startList = conn.start_instances(instList)
+    print "start instances: " + startList
+
 
 """
-StopCluster
+stopInstances
 """
-def stopCluster(argv):
-    if len(argv != 1):
-        print "hadoop stopCluster <regionName>"
+def stopInstances(argv):
+    if len(argv) != 1:
+        print "hadoop stopInstances <regionName>"
         sys.exit(-1)
     regionName = argv[0]
     region = boto.ec2.get_region(regionName)
@@ -214,16 +231,16 @@ def stopCluster(argv):
     print "stoped instances: " + stopList
 
 """
-termintaeCluster
+termInstances
 """
-def terminateCluster(argv):
-    if len(argv != 1):
-        print "hadoop termintaeCluster <regionName>"
+def termInstances(argv):
+    if len(argv) != 1:
+        print "hadoop termInstances <regionName>"
         sys.exit(-1)
     regionName = argv[0]
     region = boto.ec2.get_region(regionName)
     conn = region.connect()
     instList = _getInstancesFromRegion(conn)
     termList = conn.terminate_instances(instList)
-    print "stoped instances: " + termList
+    print "terminated instances: " + termList
 
