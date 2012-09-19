@@ -191,25 +191,28 @@ def startCluster(argv):
 Get running ip
 """
 def getRunningIp(argv):
-    if len(argv) != 2:
-        print "hadoop getRunningIp <regionName> <nodeList>"
+    if len(argv) != 1:
+        print "hadoop getRunningIp <regionName>"
         sys.exit(-1)
     regionName = argv[0]
-    nodeList = argv[1]
-    ipList = []
+    pubIpList = []
+    priIpList = []
     region = boto.ec2.get_region(regionName)
     conn = region.connect()
     resvList = conn.get_all_instances()
     for resv in resvList:
         for instance in resv.instances:
-            ip = instance.public_dns_name
-            if ip != "":
-                ipList.append(ip)
-    ipList.sort()
-    cmnIO.listToFile(nodeList, ipList)
-    print "Up nodes: ", len(ipList)
-    if (len(ipList) != 0):
-        print "First ip address: ", ipList[0]
+            publicIp = instance.public_dns_name
+            if publicIp != "":
+                pubIpList.append(publicIp)
+            privateIp = instance.private_ip_address
+            if privateIp != "":
+                priIpList.append(privateIp)
+    cmnIO.listToFile('/tmp/ec2Public', pubIpList)
+    cmnIO.listToFile('/tmp/ec2Private', priIpList)
+    print "Up nodes: ", len(pubIpList)
+    if (len(pubIpList) != 0):
+        print "First ip address: ", pubIpList[0]
 
 def _getInstancesFromRegion(conn, state=None):
     resv = conn.get_all_instances()
