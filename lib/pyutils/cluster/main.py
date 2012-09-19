@@ -5,6 +5,7 @@ Main entry of cluster package
 
 """
 
+import sys
 import CommandDict
 import batchprocess
 
