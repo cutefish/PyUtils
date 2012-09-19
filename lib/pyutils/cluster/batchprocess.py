@@ -25,7 +25,7 @@ def cpToAll(argv):
     for slave in slaveList:
         command = "scp -i /home/ec2-user/pem/HadoopExpr.pem -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r %s %s:%s" %(srcDir, slave, dstDir)
         print command
-        subprocess.Popen(command.split(" "))
+        subprocess.call(command.split(" "))
 
 
 
