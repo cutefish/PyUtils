@@ -18,6 +18,7 @@ commandList = ["addConf",
                "master",
                "slaves",
                "startCluster",
+               "getRunningIp",
                "startInstances",
                "stopInstances",
                "termInstances",
@@ -39,12 +40,14 @@ def run(argv):
         setSlaves(argv[1:])
     elif (argv[0] == "startCluster"):
         startCluster(argv[1:])
+    elif (argv[0] == "getRunningIp"):
+        getRunningIp(argv[1:])
     elif (argv[0] == "startInstances"):
-        startCluster(argv[1:])
+        startInstances(argv[1:])
     elif (argv[0] == "stopInstances"):
-        stopCluster(argv[1:])
+        stopInstances(argv[1:])
     elif (argv[0] == "termInstances"):
-        terminateCluster(argv[1:])
+        termInstances(argv[1:])
     else:
         printUsage()
 
@@ -153,10 +156,9 @@ def setSlaves(argv):
 StartCluster
 """
 def startCluster(argv):
-    if len(argv) != 1:
-        print "hadoop startCluster <nodeList>"
+    if len(argv) != 0:
+        print "hadoop startCluster"
         sys.exit(-1)
-    nodeList = argv[0]
     regions = boto.ec2.regions()
     regionInfo = '\n'.join(str(region).split(':')[1] for region in regions)
     regionName = raw_input("select region:\n%s\n>>"%regionInfo)
@@ -184,21 +186,40 @@ def startCluster(argv):
     reservation = conn.run_instances(
         imageId, min_count=numNodes, max_count=numNodes,
         security_groups = [group], instance_type=instanceType)
+
+"""
+Get running ip
+"""
+def getRunningIp(argv):
+    if len(argv) != 2:
+        print "hadoop getRunningIp <regionName> <nodeList>"
+        sys.exit(-1)
+    regionName = argv[0]
+    nodeList = argv[1]
     ipList = []
-    for instance in reservation.instances:
-        ip = instance.public_dns_name
-        if ip != "":
-            ipList.append(ip)
+    region = boto.ec2.get_region(regionName)
+    conn = region.connect()
+    resvList = conn.get_all_instances()
+    for resv in resvList:
+        for instance in resv.instances:
+            ip = instance.public_dns_name
+            if ip != "":
+                ipList.append(ip)
     ipList.sort()
     cmnIO.listToFile(nodeList, ipList)
-    print "First ip address: ", ipList[0]
+    print "Up nodes: ", len(ipList)
+    if (len(ipList) != 0):
+        print "First ip address: ", ipList[0]
 
-def _getInstancesFromRegion(conn):
+def _getInstancesFromRegion(conn, state=None):
     resv = conn.get_all_instances()
     ret = []
     for r in resv:
-        for i in resv.instances:
-            ret.append(i)
+        for i in r.instances:
+            if state == None:
+                ret.append(i.id)
+            elif i.state == state:
+                ret.append(i.id)
     return ret
 
 """
@@ -211,9 +232,10 @@ def startInstances(argv):
     regionName = argv[0]
     region = boto.ec2.get_region(regionName)
     conn = region.connect()
-    instList = _getInstancesFromRegion(conn)
+    instList = _getInstancesFromRegion(conn, state='stopped')
     startList = conn.start_instances(instList)
-    print "start instances: " + startList
+    instInfo = ', '.join(str(i) for i in startList)
+    print "start instances: " + instInfo
 
 
 """
@@ -226,9 +248,10 @@ def stopInstances(argv):
     regionName = argv[0]
     region = boto.ec2.get_region(regionName)
     conn = region.connect()
-    instList = _getInstancesFromRegion(conn)
+    instList = _getInstancesFromRegion(conn, state='running')
     stopList = conn.stop_instances(instList)
-    print "stoped instances: " + stopList
+    instInfo = ', '.join(str(i) for i in stopList)
+    print "stoped instances: " + instInfo
 
 """
 termInstances
@@ -242,5 +265,6 @@ def termInstances(argv):
     conn = region.connect()
     instList = _getInstancesFromRegion(conn)
     termList = conn.terminate_instances(instList)
-    print "terminated instances: " + termList
+    instInfo = ', '.join(str(i) for i in termList)
+    print "terminated instances: " + instInfo
 

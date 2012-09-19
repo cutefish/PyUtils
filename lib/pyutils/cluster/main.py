@@ -11,6 +11,8 @@ import batchprocess
 def run(argv):
     cmdDict = CommandDict.theDictonary
     try:
-        cmdDict[argv[0]].run(argv)
+        module = cmdDict[argv[0]]
     except:
         print "Availabe command: ", cmdDict.keys()
+    module.run(argv)
+
