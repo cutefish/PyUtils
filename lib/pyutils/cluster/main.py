@@ -12,5 +12,5 @@ def run(argv):
     cmdDict = CommandDict.theDictonary
     try:
         cmdDict[argv[0]].run(argv)
-    except KeyError:
+    except:
         print "Availabe command: ", cmdDict.keys()
