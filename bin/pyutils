@@ -15,8 +15,19 @@ if len(sys.argv) < 2:
 #temporary using if clause, to do: using module loading
 import pyutils.cluster.main as clusterMain
 import pyutils.hadoopec2.main as hadoopec2Main
+import pyutils.expr.main as exprMain
+
+packageList = [
+    "cluster",
+    "hadoopec2",
+    "expr",
+]
 
 if (sys.argv[1] == "cluster"):
     clusterMain.run(sys.argv[2:])
 elif (sys.argv[1] == "hadoopec2"):
     hadoopec2Main.run(sys.argv[2:])
+elif (sys.argv[1] == "expr"):
+    exprMain.run(sys.argv[2:])
+else:
+    print "Available packages: " + packageList

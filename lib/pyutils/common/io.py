@@ -25,3 +25,14 @@ def listToFile(fileName, ls):
     for l in ls:
         f.write(str(l) + '\n')
     f.close()
+
+def listFiles(rootDir):
+    fileList = []
+    sizeList = []
+    for root, subFolders, files in os.walk(rootDir):
+        for f in files:
+            f = os.path.abspath(os.path.join(root, f))
+            fileList.append(f)
+            sizeList.append(os.path.getsize(f))
+    return fileList, sizeList
+

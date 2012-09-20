@@ -205,8 +205,7 @@ def getRunningIp(argv):
             publicIp = instance.public_dns_name
             if publicIp != "":
                 pubIpList.append(publicIp)
-            privateIp = instance.private_ip_address
-            if privateIp != "":
+                privateIp = instance.private_ip_address
                 priIpList.append(privateIp)
     cmnIO.listToFile('/tmp/ec2Public', pubIpList)
     cmnIO.listToFile('/tmp/ec2Private', priIpList)
