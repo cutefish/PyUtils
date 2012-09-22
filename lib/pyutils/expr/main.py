@@ -5,6 +5,7 @@ Main entry of expr package
 
 """
 import math
+import os
 import re
 import sys
 
@@ -119,7 +120,10 @@ def getAveStd(argv):
         path = cmnio.normalizeName(argv[1])
         filterStr = argv[2]
 
-    fileList, sizeList = cmnio.listFiles(path)
+    if(os.path.isdir(path)):
+        fileList, sizeList = cmnio.listFiles(path)
+    else:
+        fileList = [path]
 
     def useFile(f, expr):
         if re.search(expr, f) != None:
