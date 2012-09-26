@@ -173,6 +173,8 @@ def startCluster(argv):
                         "m2.xlarge, " "m2.2xlarge, " "m2.4xlarge\n"
                         "cc1.4xlarge, " "t1.micro\n")
     instanceType = raw_input("enter instanceType:\n%s\n>>"%instanceTypeInfo)
+    availZone = raw_input("enter placement[a,b,c]:\n>>")
+    availZone = regionName + availZone
     groups = conn.get_all_security_groups()
     groupInfo = '\n'.join(str(group).split(':')[1] for group in groups)
     group = raw_input("enter securityGroup:\n%s\n>>"%groupInfo)
@@ -184,7 +186,7 @@ def startCluster(argv):
         key = raw_input("enter key name:\n%s\n>>"%keyInfo)
     numNodes = int(raw_input("number of nodes:\n>>"))
     reservation = conn.run_instances(
-        imageId, min_count=numNodes, max_count=numNodes,
+        imageId, min_count=numNodes, max_count=numNodes, placement=availZone,
         security_groups = [group], instance_type=instanceType)
 
 """
