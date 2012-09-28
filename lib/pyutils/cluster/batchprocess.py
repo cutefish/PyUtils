@@ -9,11 +9,19 @@ import sys
 import pyutils.common.io as cmnIO
 import subprocess
 
+cmdList = ["cpToAll", "cpFromAll", "sshCmd"]
+
 def run(argv):
     if (argv[0] == "cpToAll"):
         cpToAll(argv[1:])
     elif (argv[0] == "cpFromAll"):
         cpFromAll(argv[1:])
+    elif (argv[0] == "sshCmd"):
+        sshCmd(argv[1:])
+    else:
+        print cmdList
+        sys.exit(-1)
+
 
 def cpToAll(argv):
     if len(argv) != 3:
@@ -34,3 +42,13 @@ def cpFromAll(argv):
         print "cpFromAll <dstDir> <slaveFile> <srcDir>"
         sys.exit(-1)
     pass
+
+def sshCmd(argv):
+    if len(argv) != 2:
+        print "sshCmd <slaveFile> <command>"
+        sys.exit(-1)
+    slaves = cmnIO.fileToList(argv[0])
+    command = argv[1]
+    for slave in slaves:
+        print sshcmd
+        sshcmd = "ssh -t %s %s" %(slave, command)
