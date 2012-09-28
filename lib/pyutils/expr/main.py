@@ -15,7 +15,7 @@ commandList = [
     "avestd",
 ]
 
-def printUsage(argv):
+def printUsage():
     print "Availabe command: ", commandList
 
 def run(argv):
@@ -110,6 +110,7 @@ def _getAveStd(parser, fileList):
 def getAveStd(argv):
     if (len(argv) < 2) or (len(argv) > 3):
         print "avestd <parserString> <path> [pathFilterString]"
+        print "parserString: re({v:ValueRegex})"
         sys.exit(-1)
     elif len(argv) == 2:
         parser = LineParser(argv[0])

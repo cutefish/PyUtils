@@ -5,6 +5,7 @@ sys.dont_write_bytecode=True
 
 def printUsage():
     print "pyutils <package name>"
+    print "available package: ", packageList
 
 if len(sys.argv) < 2:
     printUsage()

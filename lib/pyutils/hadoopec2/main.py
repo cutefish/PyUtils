@@ -11,6 +11,8 @@ import shutil
 import sys
 
 import boto.ec2
+from boto.ec2.blockdevicemapping import BlockDeviceType
+from boto.ec2.blockdevicemapping import BlockDeviceMapping
 
 import pyutils.common.io as cmnIO
 
@@ -175,6 +177,17 @@ def startCluster(argv):
     instanceType = raw_input("enter instanceType:\n%s\n>>"%instanceTypeInfo)
     availZone = raw_input("enter placement[a,b,c]:\n>>")
     availZone = regionName + availZone
+    diskSize = int(raw_input("enter disk size[G]:\n>>"))
+    rootDev = BlockDeviceType()
+    rootDev.name = 'root'
+    rootDev.size = diskSize
+    instStorage = bool(raw_input("mount inst storage?\n>>"))
+    mapping = BlockDeviceMapping()
+    mapping['/dev/sda1'] = rootDev
+    if (instStorage == True):
+        eph0 = BlockDeviceType()
+        eph0.ephemeral_name = 'ephemeral0'
+    mapping['/dev/sdb'] = eph0
     groups = conn.get_all_security_groups()
     groupInfo = '\n'.join(str(group).split(':')[1] for group in groups)
     group = raw_input("enter securityGroup:\n%s\n>>"%groupInfo)
@@ -187,7 +200,7 @@ def startCluster(argv):
     numNodes = int(raw_input("number of nodes:\n>>"))
     reservation = conn.run_instances(
         imageId, min_count=numNodes, max_count=numNodes, placement=availZone,
-        security_groups = [group], instance_type=instanceType)
+        security_groups = [group], instance_type=instanceType, block_device_map=mapping)
 
 """
 Get running ip
