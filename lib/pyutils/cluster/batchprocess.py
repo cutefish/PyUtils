@@ -9,8 +9,6 @@ import sys
 import pyutils.common.io as cmnIO
 import subprocess
 
-cmdList = ["cpToAll", "cpFromAll", "sshCmd"]
-
 def run(argv):
     if (argv[0] == "cpToAll"):
         cpToAll(argv[1:])
@@ -19,7 +17,6 @@ def run(argv):
     elif (argv[0] == "sshCmd"):
         sshCmd(argv[1:])
     else:
-        print cmdList
         sys.exit(-1)
 
 
@@ -50,5 +47,6 @@ def sshCmd(argv):
     slaves = cmnIO.fileToList(argv[0])
     command = argv[1]
     for slave in slaves:
-        print sshcmd
         sshcmd = "ssh -t %s %s" %(slave, command)
+        print sshcmd
+        subprocess.call(sshcmd.split(" "))

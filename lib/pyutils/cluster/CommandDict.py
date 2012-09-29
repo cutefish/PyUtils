@@ -9,4 +9,5 @@ import batchprocess
 theDictonary = {
     "cpToAll" : batchprocess,
     "cpFromAll" : batchprocess,
+    "sshCmd" : batchprocess,
 }
