@@ -50,3 +50,6 @@ def sshCmd(argv):
         sshcmd = "ssh -t %s %s" %(slave, command)
         print sshcmd
         subprocess.call(sshcmd.split(" "))
+
+def main():
+    print 'batchprocess'
