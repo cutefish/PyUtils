@@ -27,14 +27,20 @@ def listToFile(fileName, ls):
         f.write(str(l) + '\n')
     f.close()
 
-def listFiles(rootDir):
+def listFiles(rootDir, ignoreError=True):
     fileList = []
     sizeList = []
     for root, subFolders, files in os.walk(rootDir):
         for f in files:
-            f = os.path.abspath(os.path.join(root, f))
-            fileList.append(f)
-            sizeList.append(os.path.getsize(f))
+            try:
+                f = os.path.abspath(os.path.join(root, f))
+                fileList.append(f)
+                sizeList.append(os.path.getsize(f))
+            except Exception as e:
+                if (ignoreError):
+                    continue
+                else:
+                    raise e
     return fileList, sizeList
 
 def replaceWith(inPath, outPath, pattern, replace, maxNumReplace=0):

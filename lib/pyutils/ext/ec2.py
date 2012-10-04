@@ -28,11 +28,6 @@ class EC2Runnable(clir.CliRunnable):
             'termInstances': 'Terminate all instances',
         }
 
-    def getAvailableCommand(self):
-        return '\n'.join(
-            ">>" + key + ": " + value
-            for key, value in self.availableCommand.iteritems())
-
     #startCluster
     def startCluster(self, argv):
         if len(argv) != 0:
@@ -59,6 +54,7 @@ class EC2Runnable(clir.CliRunnable):
         rootDev = BlockDeviceType()
         rootDev.name = 'root'
         rootDev.size = diskSize
+        rootDev.delete_on_termination = True
         instStorage = bool(raw_input("mount inst storage?\n>>"))
         mapping = BlockDeviceMapping()
         mapping['/dev/sda1'] = rootDev

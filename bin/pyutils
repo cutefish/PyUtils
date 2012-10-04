@@ -36,6 +36,7 @@ try:
     m = ru.importModule(sys.argv[1], pyutils)
 except ImportError as ie:
     print "Error importing module: " + ie.args[0]
+    print "cause: " + str(ie.args[1])
     sys.exit(-1)
 
 if m.__file__.endswith('__init__.py'):

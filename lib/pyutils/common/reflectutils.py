@@ -15,8 +15,8 @@ def importModule(name, topLevel):
             importedName = importedName + '.' + moduleName
             f, p, d = imp.find_module(moduleName, currLevel.__path__)
             currLevel = imp.load_module(moduleName, f, p, d)
-        except ImportError:
-            raise ImportError(importedName)
+        except ImportError as ie:
+            raise ImportError(importedName, ie)
     return currLevel
 
 def getRunnableClass(module):
