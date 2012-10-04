@@ -38,8 +38,17 @@ except ImportError as ie:
     print "Error importing module: " + ie.args[0]
     sys.exit(-1)
 
-try:
-    m.main()
-except AttributeError:
-    print "Module <%s> did not define a main function" %m.__name__
-    sys.exit(-1)
+if m.__file__.endswith('__init__.py'):
+    #a package file
+    try:
+        m.printUsage()
+    except AttributeError:
+        print "printUsage() not available for package: " + m.__name__
+        sys.exit(-1)
+else:
+    cls = ru.getRunnableClass(m)
+    if cls == None:
+        print "No CliRunnable class defined in module: " + m.__name__
+        sys.exit(-1)
+    obj = cls()
+    obj.run(sys.argv[2:])

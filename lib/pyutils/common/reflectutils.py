@@ -20,9 +20,9 @@ def importModule(name, topLevel):
     return currLevel
 
 def getRunnableClass(module):
-    members = inspect.getmembers(module,
-                                 lambda m : issubclass(m, clir.CliRunnable))
-    if len(members) == 0:
-        return None
-    key, value = members.popitem();
-    return value
+    members = inspect.getmembers(module)
+    for name, obj in members:
+        if (inspect.isclass(obj)):
+            if issubclass(obj, clir.CliRunnable):
+                return obj
+    return None

@@ -9,19 +9,19 @@ entry of a module.
 import sys
 
 class CliRunnable:
-    def getAvailableCommand():
+    def getAvailableCommand(self):
         """Return the availabe command dictionary.
 
         Subclass object should override this method.
         """
         return {}
 
-    def printUsage():
-        print getAvailableCommand();
+    def printUsage(self):
+        print "Available comand:\n" + self.getAvailableCommand();
 
-    def run(argv):
-        if len(argv == 0):
-            printUsage()
+    def run(self, argv):
+        if len(argv) == 0:
+            self.printUsage()
             sys.exit(-1)
         func = getattr(self, argv[0])
         func(argv[1:])
