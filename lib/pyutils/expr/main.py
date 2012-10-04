@@ -102,7 +102,7 @@ def _getAveStd(parser, fileList):
         for line in h:
             key, value = parser.parse(line)
             if (value != None):
-                values.append(value)
+                values.append(float(value))
     mean = getMean(values)
     std = getStd(values, mean)
     return mean, std

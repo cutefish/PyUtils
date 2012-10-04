@@ -168,7 +168,8 @@ def startCluster(argv):
     conn = region.connect()
     print "region connected successfully"
     images = conn.get_all_images(owners='self')
-    imageInfo = '\n'.join(str(image).split(':')[1] for image in images)
+    imageInfo = '\n'.join(
+        str(image).split(':')[1] + ":" + image.name for image in images)
     imageId = raw_input("enter imageId:\nself-created images:\n%s\n>>"%imageInfo)
     instanceTypeInfo = ("m1.small, " "m1.large, " "m1.xlarge\n"
                         "c1.medium, " "c1.xlarge\n"

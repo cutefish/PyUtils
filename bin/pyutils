@@ -4,9 +4,13 @@ import sys
 sys.dont_write_bytecode=True
 import imp
 import os
-import common.importutil as imputil
+import pyutils.common.reflectutils as ru
 
 #search available packages
+if os.environ['PYUTILSHOME'] == None:
+    print 'PyUtils not properly set up, please run setup.py again'
+    sys.exit(-1)
+
 pkgDir = os.environ['PYUTILSHOME'] + '/pyutils'
 
 null, pkgPath, desc = imp.find_module('pyutils')
@@ -29,7 +33,7 @@ if len(sys.argv) < 2:
     sys.exit(-1)
 
 try:
-    m = imputil.importModule(sys.argv[1], pyutils)
+    m = ru.importModule(sys.argv[1], pyutils)
 except ImportError as ie:
     print "Error importing module: " + ie.args[0]
     sys.exit(-1)
