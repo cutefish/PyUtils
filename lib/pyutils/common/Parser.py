@@ -3,6 +3,8 @@ Parser.py
 
 A object that has a parse() function
 """
+import sys
+sys.dont_write_bytecode=True
 
 import re
 

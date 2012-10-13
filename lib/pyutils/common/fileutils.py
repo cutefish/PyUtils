@@ -5,6 +5,8 @@ common.io.py
 common io operation
 
 """
+import sys
+sys.dont_write_bytecode=True
 
 import os
 import shutil
