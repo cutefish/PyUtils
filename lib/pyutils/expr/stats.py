@@ -36,8 +36,8 @@ def getBasics(parser, handlers):
     #std
     total = 0.0
     for v in values:
-        total += math.sqrt((v - rave)**2)
-    rstd = math.sqrt((1.0 / (rcount - 1)) * (total / rcount))
+        total += (v - rave)**2
+    rstd = math.sqrt((1.0 / (rcount - 1)) * total)
     #min and max
     rmin = values[0]
     rmax = values[0]

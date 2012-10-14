@@ -52,6 +52,41 @@ def repeatNoneInteract(command, collector, count, parallel=False):
     collector.cleanup()
     return collector.result
 
+class BasicCollector:
+    def __init__(self, pattern):
+        self.parser = ps.KeyValParser(pattern)
+
+    def setup(self):
+        self.values = []
+
+    def collect(self, handler):
+        for line in handler:
+            key, value = self.parser.parse(line)
+            if (value != None):
+                self.values.append(float(value))
+
+    def cleanup(self):
+        #count
+        rcount = len(self.values)
+        #sum
+        rsum = math.fsum(self.values)
+        #ave
+        rave = rsum / rcount
+        #std
+        total = 0.0
+        for v in self.values:
+            total += (v - rave)**2
+            rstd = math.sqrt((1.0 / (rcount - 1)) * total)
+        #min and max
+        rmin = self.values[0]
+        rmax = self.values[0]
+        for v in self.values:
+            if v < rmin:
+                rmin = v
+            if v > rmax:
+                rmax = v
+        self.result = (rcount, rsum, rave,
+                       rstd, rmin, rmax)
 
 class ExprRunnalbe(clir.CliRunnable):
 
@@ -74,42 +109,9 @@ class ExprRunnalbe(clir.CliRunnable):
         command = argv[0]
         pattern = argv[1]
         count = int(argv[2])
-        parser = ps.KeyValParser(pattern)
 
-        class BasicCollector:
-            def setup(self):
-                self.values = []
-
-            def collect(self, handler):
-                for line in handler:
-                    key, value = parser.parse(line)
-                    if (value != None):
-                        self.values.append(float(value))
-
-            def cleanup(self):
-                #count
-                rcount = len(self.values)
-                #sum
-                rsum = math.fsum(self.values)
-                #ave
-                rave = rsum / rcount
-                #std
-                total = 0.0
-                for v in self.values:
-                    total += (v - rave)**2
-                    rstd = math.sqrt((1.0 / (rcount - 1)) * total)
-                #min and max
-                rmin = self.values[0]
-                rmax = self.values[0]
-                for v in self.values:
-                    if v < rmin:
-                        rmin = v
-                    if v > rmax:
-                        rmax = v
-                self.result = (rcount, rsum, rave,
-                               rstd, rmin, rmax)
         rcount, rsum, rave, rstd, rmin, rmax = repeatNoneInteract(
-            command, BasicCollector(), count)
+            command, BasicCollector(pattern), count)
         print ("cnt: " + str(rcount) + ", " +
                "sum: " + str(rsum) + ", " +
                "ave: " + str(rave) + ", " +
