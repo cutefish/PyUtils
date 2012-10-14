@@ -3,9 +3,6 @@ Parser.py
 
 A object that has a parse() function
 """
-import sys
-sys.dont_write_bytecode=True
-
 import re
 
 class Parser:
@@ -30,13 +27,13 @@ class KeyValParser(Parser):
         '%float' : ('[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?', float, 'float'),
     }
 
-    def __init__(self, pattern='{k:%str}\s*%:\s*{v:%str}:k}'):
-        keyPart = re.search('{k:(?P<key>.+?):k}', pattern).group('key')
-        valPart = re.search('{v:(?P<val>.+?):v}', pattern).group('val')
+    def __init__(self, pattern='{k:%str}\s*%:\s*{v:%str}'):
+        keyPart = re.search('{k:(?P<key>[^}]+?)}', pattern).group('key')
+        valPart = re.search('{v:(?P<val>[^}]+?)}', pattern).group('val')
         keyPattern, keyType = self.replTypeKey(keyPart)
         valPattern, valType = self.replTypeKey(valPart)
-        pattern = re.sub('{k:.+?:k}', '(?P<key>%s)'%keyPattern, pattern)
-        pattern = re.sub('{v:.+?:v}', '(?P<val>%s)'%valPattern, pattern)
+        pattern = re.sub('{k:[^}]+?}', '(?P<key>%s)'%keyPattern, pattern)
+        pattern = re.sub('{v:[^}]+?}', '(?P<val>%s)'%valPattern, pattern)
         self.pattern = pattern
         self.keyType = keyType
         self.valType = valType

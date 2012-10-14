@@ -1,7 +1,6 @@
 import re
 import sys
 import xml.etree.ElementTree as ET
-sys.dont_write_bytecode=True
 
 import fileutils as fu
 
