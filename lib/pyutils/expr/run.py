@@ -76,7 +76,7 @@ class BasicCollector:
         total = 0.0
         for v in self.values:
             total += (v - rave)**2
-            rstd = math.sqrt((1.0 / (rcount - 1)) * total)
+            rstd = math.sqrt((1.0 / rcount) * total)
         #min and max
         rmin = self.values[0]
         rmax = self.values[0]

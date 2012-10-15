@@ -37,7 +37,7 @@ def getBasics(parser, handlers):
     total = 0.0
     for v in values:
         total += (v - rave)**2
-    rstd = math.sqrt((1.0 / (rcount - 1)) * total)
+    rstd = math.sqrt((1.0 / rcount) * total)
     #min and max
     rmin = values[0]
     rmax = values[0]
