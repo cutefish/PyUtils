@@ -32,6 +32,32 @@ class Configuration:
         else:
             return default
 
+    def getStrings(self, key, default=None):
+        listStr = self.get(key, default)
+        strList = re.split('\s*,\s*', listStr)
+        for i in range(len(strList)):
+            strList[i] = self._subVar(strList[i])
+        return strList
+
+    def getIntRange(self, key, default=None):
+        listStr = self.get(key, default)
+        strList = re.split('\s*,\s*', listStr)
+        ret = set([])
+        for s in strList:
+            if ':' in s:
+                linspace = re.split('\s*:\s*', s)
+                start = int(linspace[0])
+                end = int(linspace[-1])
+                if len(linspace) == 3:
+                    step = int(linspace[1])
+                else:
+                    step = 1
+                for i in range(start, end, step):
+                    ret.add(i)
+            else:
+                ret.add(int(s))
+        return sorted(ret)
+
     def _subVar(self, var):
         match = re.match(self.VAR_MATCH, var)
         if match == None:
@@ -49,9 +75,10 @@ class Configuration:
         if filename.endswith('.xml'):
             writer = XmlConfigWriter()
             writer.write(self._dict, fu.normalizeName(filename))
-        elif filename.endswith('.properties'):
+        else:
             writer = PropConfigWriter()
             writer.write(self._dict, fu.normalizeName(filename))
+
 
     def __str__(self):
         return str(self._dict)
@@ -113,7 +140,7 @@ class XmlConfigWriter:
         tree.write(filename)
 
 class PropConfigWriter:
-    def write(self, d):
+    def write(self, theDict, filename):
         pass
 
 def main(infile, outfile):
@@ -124,7 +151,11 @@ def main(infile, outfile):
     conf.set('num.modification', 3)
     print conf.get('local.dir')
     print conf.get('num.modification', convertType=int)
+    conf.set('str.list', '/data, /data/input , ${tmp.dir}, /data/soclj')
+    conf.set('int.list', '1, 3, 5 , 4:8, 6:2:10')
     conf.write(outfile)
+    print conf.getStrings('str.list')
+    print conf.getIntRange('int.list')
 
 if __name__ == '__main__':
     main(sys.argv[1], sys.argv[2])
