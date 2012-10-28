@@ -30,18 +30,32 @@ class BroadCastRunnable(clir.CliRunnable):
         options = ""
         if len(argv) == 4:
             options = argv[3]
+            if not options.endswith(" "):
+                options += " "
         for slave in slaveList:
-            command = "scp %s -r %s %s:%s" %(options, srcDir, slave, dstDir)
+            command = "scp %s-r %s %s:%s" %(options, srcDir, slave, dstDir)
             print command
             subprocess.call(command.split(" "))
 
 
 
     def cpFromAll(self, argv):
-        if len(argv) != 3:
-            print "cpFromAll <dstDir> <slaveFile> <srcDir>"
+        if (len(argv) < 3) or (len(argv) > 4):
+            print "cpFromAll <dstDir> <slaveFile> <srcDir> [option_string]"
+            print "     use quote for option_string"
             sys.exit(-1)
-        pass
+        dstDir = fu.normalizeName(argv[0])
+        slaveList = fu.fileToList(argv[1])
+        srcDir = fu.normalizeName(argv[2])
+        options = ""
+        if len(argv) == 4:
+            options = argv[3]
+            if not options.endswith(" "):
+                options += " "
+        for slave in slaveList:
+            command = "scp %s-r %s:%s %s" %(options, slave, srcDir, dstDir)
+            print command
+            subprocess.call(command.split(" "))
 
     def sshCmd(self, argv):
         if (len(argv) < 2) or (len(argv) > 4):
