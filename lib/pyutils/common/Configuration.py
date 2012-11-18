@@ -22,7 +22,9 @@ class Configuration:
         elif (isinstance(res, str) and res.endswith('.xml')):
             parser = XmlConfigParser()
             self._dict = parser.parse(res)
-        elif (isinstance(res, str) and res.endswith('.properties')):
+        elif (isinstance(res, str) and
+              (res.endswith('.properties') or
+               res.endswith('.prop'))):
             parser = PropConfigParser()
             self._dict = parser.parse(res)
 
@@ -120,7 +122,20 @@ class XmlConfigParser:
 
 class PropConfigParser:
     def parse(self, filename):
-        pass
+        retDict = {}
+        f = open(fu.normalizeName(filename))
+        lineno = 1
+        for line in f:
+            if line.startswith('#'):
+                continue
+            try:
+                key, value = re.split('\s*=\s*', line.strip(), 1)
+            except:
+                print "PropConfigParser Parse Error. [%s] %s" %(lineno, line)
+                continue
+            retDict[key] = value
+        f.close()
+        return retDict
 
 class XmlConfigWriter:
     def write(self, theDict, filename):
@@ -141,7 +156,10 @@ class XmlConfigWriter:
 
 class PropConfigWriter:
     def write(self, theDict, filename):
-        pass
+        f = open(fu.normalizeName(filename), 'w')
+        for key, value in theDict.iteritems():
+            f.write('%s = %s\n' %(key, value))
+        f.close()
 
 def main(infile, outfile):
     conf = Configuration()
@@ -149,6 +167,7 @@ def main(infile, outfile):
     conf.set('tmp.dir', '/tmp')
     conf.set('local.dir', '${tmp.dir}/local')
     conf.set('num.modification', 3)
+    print conf
     print conf.get('local.dir')
     print conf.get('num.modification', convertType=int)
     conf.set('str.list', '/data, /data/input , ${tmp.dir}, /data/soclj')
