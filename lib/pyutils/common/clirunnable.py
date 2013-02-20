@@ -1,5 +1,5 @@
 """
-CliRunnable
+Clirunnable
 
 Every object/module runnable from command line should define a class that
 inherits from this class. This class defines basic interface to run the main
@@ -8,7 +8,7 @@ entry of a module.
 
 import sys
 
-class CliRunnable:
+class Clirunnable:
 
     def __init__(self):
         """Initialize an availabe command dictionary.

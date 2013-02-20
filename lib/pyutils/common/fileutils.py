@@ -1,8 +1,8 @@
 """
 
-common.io.py
+common.fileutils.py
 
-common io operation
+common file operations
 
 """
 import os
@@ -41,6 +41,18 @@ def listFiles(rootDir, ignoreError=True):
                 else:
                     raise e
     return fileList, sizeList
+
+def iterFiles(rootDir, ignoreError=True):
+    for root, subFolders, files in os.walk(rootDir):
+        for f in files:
+            try:
+                f = os.path.abspath(os.path.join(root, f))
+                yield f, os.path.getsize(f)
+            except Exception as e:
+                if (ignoreError):
+                    continue
+                else:
+                    raise e
 
 def replaceWith(inPath, outPath, pattern, replace, maxNumReplace=0):
     """Replace a pattern in file and return the number replaced

@@ -9,47 +9,53 @@ import os
 import re
 import sys
 
+import pyutils.common.clirunnable as clir
+import pyutils.common.configuration as cfg
 import pyutils.common.fileutils as fu
-import pyutils.common.CliRunnable as clir
-import pyutils.common.Parser as ps
+import pyutils.txtproc as tp
+import tp.LocalFileFetcher as LocalFileFetcher
+import tp.KeyValueEmitter as KeyValueEmitter
+import tp.Reducer as Reducer
+import tp.SysStdoutWriter as SysStdoutWriter
 
-def getBasics(parser, handlers):
+def BasicStatsReduer(Reducer):
     """
-    Return count, sum, ave, std, min, max.
+    Calculate count, sum, ave, std, min, max.
 
-    Args:
-        parser      -- common.Parser object to parse the files.
-        handlers    -- list of file handlers.
     """
-    values = []
-    for h in handlers:
-        for line in h:
-            key, value = parser.parse(line)
-            if (value != None):
-                values.append(float(value))
-    #count
-    rcount = len(values)
-    #sum
-    rsum = math.fsum(values)
-    #ave
-    rave = rsum / rcount
-    #std
-    total = 0.0
-    for v in values:
-        total += (v - rave)**2
-    rstd = math.sqrt((1.0 / rcount) * total)
-    #min and max
-    rmin = values[0]
-    rmax = values[0]
-    for v in values:
-        if v < rmin:
-            rmin = v
-        if v > rmax:
-            rmax = v
-    return rcount, rsum, rave, rstd, rmin, rmax
+    INVALID_VALUE_CORRECTION_KEY = "stats.basic.reducer.correction"
+    DEFAULT_INVALID_VALUE_CORRECTION = 0
+    def __init__(self, conf):
+        self.correction = conf.get(INVALID_VALUE_CORRECTION_KEY,
+                                   DEFAULT_INVALID_VALUE_CORRECTION,
+                                   float)
 
+    def run(self, key, values):
+        valist = []
+        for val in values:
+            try:
+                valist.append(float(val))
+            except TypeError:
+                valist.append(self.correction)
+        rcount = len(valist)
+        rsum = math.fsum(valist)
+        rave = rsum / rcount
+        var = 0.0
+        for val in valist:
+            var += (val - rave)**2
+        rstd = math.sqrt((1.0 / rcount) * var)
+        rmin = valist[0]
+        rmax = values[0]
+        for v in values:
+            if v < rmin:
+                rmin = v
+            if v > rmax:
+                rmax = v
+        value = '[count=%s, sum=%s, ave=%s, std=%s, min=%s, max=%s]' %(
+            rcount, rsum, rave, rstd, rmin, rmax)
+        return key, value
 
-class StatsRunnalbe(clir.CliRunnable):
+class StatsRunnalbe(clir.Clirunnable):
 
     def __init__(self):
         self.availableCommand = {
@@ -72,24 +78,14 @@ class StatsRunnalbe(clir.CliRunnable):
         pathFilterString = '.*'
         if len(argv) == 3:
             pathFilterString = argv[2]
-        parser = ps.KeyValParser(pattern)
         path = fu.normalizeName(inputPath)
-        if (os.path.isdir(path)):
-            fileList, sizeList = fu.listFiles(path)
-        else:
-            fileList = [path]
+        conf = cfg.Configuration()
+        conf.set(tp.MODULE_FILE_KEY, self.__module__)
+        conf.set(LocalFileFetcher.INPUT_DIR_KEY, path)
+        conf.set(LocalFileFetcher.INPUT_FILTER_KEY, pathFilterString)
+        conf.set(tp.REDUCER_CLASS_KEY, "BasicStatsReduer")
+        conf.set(KeyValueEmitter.KEYVALUE_PARSE_PATTERN_KEY, pattern)
+        conf.set(tp.OUTPUT_CLASS_KEY, "pyutils.expr.txtpro")
+        proc = tp.TxtProc(conf)
+        proc.run()
 
-        def useFile(f, expr):
-            if re.search(expr, f) != None:
-                return True
-            return False
-
-        searchList = [open(f, 'r')
-                      for f in fileList if useFile(f, pathFilterString)]
-        rcount, rsum, rave, rstd, rmin, rmax = getBasics(parser, searchList)
-        print ("cnt: " + str(rcount) + ", " +
-               "sum: " + str(rsum) + ", " +
-               "ave: " + str(rave) + ", " +
-               "std: " + str(rstd) + ", " +
-               "min: " + str(rmin) + ", " +
-               "max: " + str(rmax) + ".")
