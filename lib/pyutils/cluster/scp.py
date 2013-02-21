@@ -1,7 +1,7 @@
 """
-cluster.batchprocess.py
+cluster.scp
 
-Batch process on a list of slaves
+scp utils for cluster
 
 """
 
@@ -9,21 +9,33 @@ import sys
 import subprocess
 
 import pyutils.common.fileutils as fu
-import pyutils.common.clirunnable as clir
+from pyutils.common.clirunnable import CliRunnable
+from pyutils.common.config import Configuration
+from pyutils.common.parser import CustomArgsParser
 
-class BroadCastRunnable(clir.CliRunnable):
+class ScpRunnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'gather': 'Copy a dir/file to all nodes',
             'scatter': 'Copy a dir/file from all nodes',
-            'bcastexec': 'SSH execute a command to all nodes',
+            'copy': 'Copy using pattern matching',
         }
+        self.argsParser = \
+                CustomArgsParser( ['--conf', 
+                                   '--slaves'])
 
     def gather(self, argv):
-        if (len(argv) < 3) or (len(argv) > 4):
-            print "gather <srcDir> <slaveFile> <dstDir> [option_string]"
-            print "     use quote for option_string"
+        if (len(argv) < 2):
+            print "gather <srcDir> <dstDir> [options]"
+            print "  options:"
+            print "    --conf configuration file"
+            print "    --slaves slave file"
             sys.exit(-1)
+        self.argsParser.parse(argv)
+        conf = Configuration()
+        conf.addResources(self.argsParser.getOption('--conf'))
+        slaveFile = self.argsParser.getOption('--slaves')
+        slaves = self.getSlaves(slaveFile, conf)
         srcDir = fu.normalizeName(argv[0])
         slaveList = fu.fileToList(argv[1])
         dstDir = fu.normalizeName(argv[2])

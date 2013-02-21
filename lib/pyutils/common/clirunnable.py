@@ -1,5 +1,5 @@
 """
-Clirunnable
+CliRunnable
 
 Every object/module runnable from command line should define a class that
 inherits from this class. This class defines basic interface to run the main

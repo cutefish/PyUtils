@@ -5,7 +5,7 @@ import imp
 import os
 import pyutils
 import pyutils.common.importutils as iu
-import pyutils.common.clirunnable as clir
+from pyutils.common.clirunnable import CliRunnable
 
 #search available packages
 if os.environ['PYUTILSHOME'] == None:
@@ -55,7 +55,7 @@ if m.__file__.endswith('__init__.py') or m.__file__.endswith('__init__.pyc'):
         print "modules not exposed for package: " + m.__name__
         sys.exit(-1)
 else:
-    cls = iu.loadClass(moduleName, base=clir.CliRunnable)
+    cls = iu.loadClass(moduleName, interface=CliRunnable)
     if cls == None:
         print "No clirunnable class defined in module: " + m.__name__
         sys.exit(-1)

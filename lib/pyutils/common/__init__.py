@@ -1,1 +1,6 @@
-import sys
+
+
+modules = {
+    "config" : "modify configuration",
+}
+

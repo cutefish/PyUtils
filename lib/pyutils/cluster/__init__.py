@@ -1,5 +1,5 @@
 
 modules = {
-    "broadcast" : "Broadcast commands",
+    "scp" : "copy between local and remote",
 }
 

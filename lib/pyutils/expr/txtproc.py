@@ -10,12 +10,12 @@ a text file.
 import sys
 import time
 
-import pyutils.common.clirunnable as clir
 import pyutils.common.fileutils as fu
 import pyutils.common.filter as fil
 import pyutils.common.importutils as iu
 import pyutils.common.parser as ps
-
+from pyutils.common.clirunnable import CliRunnable
+from pyutils.common.config import Configuration
 
 ###########################################################
 # Settings
@@ -28,6 +28,7 @@ REDUCER_CLASS_KEY = "txtproc.reducer.class"
 OUTPUT_CLASS_KEY = "txtproc.output.class"
 KEY_CMP_CLASS_KEY = "txtproc.key.cmp.class"
 VAL_CMP_CLASS_KEY = "txtproc.val.cmp.class"
+OUTPUT_FILENAME_KEY = "txtproc.file.writer.filename"
 OUTPUT_TOKEN_SEPERATOR_KEY = "txtproc.token.seperator"
 OUTPUT_LINE_SEPERATOR_KEY = "txtproc.line.seperator"
 
@@ -40,6 +41,14 @@ INPUT_FILTER_PATTERN_KEY = "txtproc.input.filter.pattern"
 ###########################################################
 
 class InputFetcher():
+    """
+    @interface InputFetcher
+
+    @Override
+    hasNext(self)
+    next(self)
+    __str__(self)
+    """
     def hasNext(self):
         pass
 
@@ -50,6 +59,12 @@ class InputFetcher():
         return 'InputFetcher: ' + self.__class__
 
 class Mapper():
+    """
+    @interface Mapper
+    @Override
+    run(self, fd, collector)
+    __str__(self)
+    """
     def run(self, fd, collector):
         pass
 
@@ -57,6 +72,12 @@ class Mapper():
         return 'Mapper: ' + self.__class__
 
 class Reducer():
+    """
+    @interface Reducer
+    @Override
+    run(self, key, values)
+    __str__(self)
+    """
     def run(self, key, values):
         pass
 
@@ -64,11 +85,31 @@ class Reducer():
         return 'Reducer: ' + self.__class__
 
 class OutputWriter():
+    """
+    @interface OutputWriter
+    @Override
+    write(key, value)
+    __str__(self)
+    """
     def write(key, value):
         pass
 
     def __str__(self):
         return 'OutputWriter: ' + self.__class__
+
+class Comparator():
+    """
+    @interface Comparator
+    @Override
+    compare(o1, o2)
+    """
+    def compare(o1, o2):
+        if o1 < o2:
+            return -1
+        if o1 == o2:
+            return 0
+        if o1 > o2:
+            return 1
 
 class Collector():
     """
@@ -91,11 +132,11 @@ class Collector():
 
     def sort(self, keyCmp, valCmp):
         if keyCmp != None:
-            keyFunc = self.cmp_to_key(keyCmp)
+            keyFunc = self.cmp_to_key(keyCmp.compare)
         else:
             keyFunc = None
         if valCmp != None:
-            valFunc = self.cmp_to_key(valCmp)
+            valFunc = self.cmp_to_key(valCmp.compare)
         else:
             valFunc = None
         for key in sorted(self._dict.iterkeys(), 
@@ -131,8 +172,9 @@ class Collector():
         return K
 
 class LocalFileFetcher(InputFetcher):
-    """ Fetches file one by one. """
-
+    """
+    @class LocalFileFetcher: Fetches local file one by one. 
+    """
     def __init__(self, conf):
         self.flist = []
         rootdir = fu.normalizeName(conf.get(INPUT_DIR_KEY))
@@ -160,6 +202,7 @@ class LocalFileFetcher(InputFetcher):
 
 class KeyValueEmitter(Mapper):
     """
+    @class KeyValueEmitter: 
     Emit key/value pairs for each line using KeyValParser.
 
     Multiple patterns are seperated in the form 
@@ -193,7 +236,10 @@ class KeyValueEmitter(Mapper):
         return ret
 
 class IdentityReducer(Reducer):
-    """Combine all the values to a space separated string."""
+    """
+    @class IdentityReducer:
+    Combine all the values to a space separated string.
+    """
     def __init__(self, conf):
         pass
 
@@ -202,8 +248,9 @@ class IdentityReducer(Reducer):
         return key, value
 
 class KeyValueFileWriter(OutputWriter):
-    """Write output to a file."""
-    OUTPUT_FILENAME_KEY = "keyvalue.file.writer.filename"
+    """
+    @class KeyValueFileWriter: Write output to a file.
+    """
     DEFAULT_FILENAME = "./out_%s" %(int(time.time()))
     def __init__(self, conf):
         filename = fu.normalizeName(
@@ -225,6 +272,9 @@ class KeyValueFileWriter(OutputWriter):
                 "out file= " + self.fd.name
 
 class SysStdoutWriter(OutputWriter):
+    """
+    @class SysStdoutWriter: Write output to sys.stdout.
+    """
     def __init__(self, conf):
         self.tsep = conf.get(
             OUTPUT_TOKEN_SEPERATOR_KEY, DEFAULT_OUTPUT_TOKEN_SEPERATOR)
@@ -306,12 +356,52 @@ class TxtProc:
         ret += "outputs: " + str(self.outputs) + "\n"
         return ret
 
-class TxtProcRunnable(clir.CliRunnable):
+class TxtProcRunnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
+            'help': 'show built-in keys and classes',
             'showconf': 'show the configurations',
             'run': 'run processing with configurations',
         }
+
+    def help(self, argv):
+        infos = ['conf', 'class', 'default', 'all']
+        disp = 'all'
+        if (len(argv) != 0):
+            if argv[0] not in infos:
+                print "txtproc help <conf/class/default/all>"
+                sys.exit(-1)
+            disp = argv[0]
+        if disp in ['conf', 'all']:
+            print 'conf keys:'
+            print EXTRA_PATHS_KEY
+            print INPUT_CLASS_KEY
+            print MAPPER_CLASS_KEY
+            print REDUCER_CLASS_KEY
+            print OUTPUT_CLASS_KEY
+            print KEY_CMP_CLASS_KEY
+            print VAL_CMP_CLASS_KEY
+            print OUTPUT_FILENAME_KEY
+            print OUTPUT_TOKEN_SEPERATOR_KEY
+            print OUTPUT_LINE_SEPERATOR_KEY
+            print INPUT_DIR_KEY
+            print INPUT_FILTER_KEY
+            print INPUT_FILTER_PATTERN_KEY
+        if disp in ['class', 'all']:
+            print 'classes:'
+            print InputFetcher.__doc__
+            print Mapper.__doc__
+            print Reducer.__doc__
+            print OutputWriter.__doc__
+            print Comparator.__doc__
+        if disp in ['default', 'all']:
+            print 'defaults:'
+            print LocalFileFetcher.__doc__
+            print KeyValueEmitter.__doc__
+            print IdentityReducer.__doc__
+            print KeyValueFileWriter.__doc__
+            print SysStdoutWriter.__doc__
+
 
     def showconf(self, argv):
         if (len(argv) != 1):
@@ -319,7 +409,7 @@ class TxtProcRunnable(clir.CliRunnable):
             print "showconf <conf>"
             sys.exit(-1)
         cfgFile = argv[0]
-        conf = cfg.Configuration()
+        conf = Configuration()
         conf.addResources(cfgFile)
         proc = TxtProc(conf)
         print proc
@@ -330,7 +420,7 @@ class TxtProcRunnable(clir.CliRunnable):
             print "process <conf>"
             sys.exit(-1)
         cfgFile = argv[0]
-        conf = cfg.Configuration()
+        conf = Configuration()
         conf.addResources(cfgFile)
         proc = TxtProc(conf)
         proc.run()

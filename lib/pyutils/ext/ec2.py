@@ -15,7 +15,7 @@ from boto.ec2.blockdevicemapping import BlockDeviceType
 from boto.ec2.blockdevicemapping import BlockDeviceMapping
 
 import pyutils.common.fileutils as fu
-import pyutils.common.clirunnable as clir
+from pyutils.common.clirunnable import CliRunnable
 
 class EC2Runnable(clir.CliRunnable):
     def __init__(self):

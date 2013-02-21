@@ -2,8 +2,6 @@ import imp
 import inspect
 import sys
 
-import clirunnable as clir
-
 def loadModule(name, path=[]):
     """
     Load a module according to the name heirarchy.
@@ -38,12 +36,12 @@ def loadModule(name, path=[]):
             raise ImportError(importedName, currLevel, moduleName, ie)
     return currLevel
 
-def loadClass(name, path=[], base=None):
+def loadClass(name, path=[], interface=None):
     """
     Search for a class.
 
     @name is the name of the class, with the same convention as @loadModule()
-    @base is the (base) class type for @return 
+    @interface is the interface class type for @return 
 
     @return the class object or None if error
     """
@@ -54,14 +52,14 @@ def loadClass(name, path=[], base=None):
     except ImportError as ie:
         lname, m, n, e = ie.args
     #if successfully load a module, we need to search for a class inherited
-    #from @base in that module
+    #from @interface in that module
     if success:
-        if base == None:
+        if interface == None:
             raise ImportError("%s is a module, not a class" %name)
         members = inspect.getmembers(m)
         for clsName, cls in members:
             if (inspect.isclass(cls)):
-                if issubclass(cls, base):
+                if issubclass(cls, interface) and not cls is interface:
                     return cls
         return None
     #load module is not fully successful, pick up from what's left
@@ -69,20 +67,19 @@ def loadClass(name, path=[], base=None):
     loaded = lname.split('.')
     for l in loaded:
         hierarchy.pop(0)
-    #dfs search for class
-    matchQueue = [(m, hierarchy)]
-    while len(matchQueue) != 0:
-        curr, h = matchQueue.pop()
-        currName = h.pop(0)
+    #search for class
+    curr = m
+    while True:
+        currName = hierarchy.pop(0)
         members = inspect.getmembers(curr)
         for clsName, cls in members:
             if clsName == currName:
-                if len(h) != 0:
-                    matchQueue.append(cls, h)
+                if len(hierarchy) != 0:
+                    curr = cls
                     continue
                 #last level
                 if inspect.isclass(cls):
-                    if (base != None) and (not issubclass(cls, base)):
+                    if (interface != None) and (not issubclass(cls, interface)):
                         raise ImportError("Class not found: " + name)
                     return cls
                 else:

@@ -2,8 +2,10 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-import fileutils as fu
-import importutils as iu
+import pyutils.common.fileutils as fu
+import pyutils.common.importutils as iu
+
+from pyutils.common.clirunnable import CliRunnable
 
 class Configuration:
     VAR_MATCH = '\$\{[^}$\s]+\}'
@@ -157,6 +159,7 @@ class XmlConfigWriter:
     def write(self, theDict, filename):
         root = ET.Element('configuration')
         root.text = '\n  \n  '
+        lastProp = None
         for key in theDict:
             prop = ET.SubElement(root, 'property')
             prop.text = '\n    '
@@ -167,6 +170,9 @@ class XmlConfigWriter:
             value = ET.SubElement(prop, 'value')
             value.text = theDict[key]
             value.tail = '\n  '
+            lastProp = prop
+        lastProp.tail = '\n\n'
+        root.tail = '\n'
         tree = ET.ElementTree(root)
         tree.write(filename)
 
@@ -176,6 +182,37 @@ class PropConfigWriter:
         for key, value in theDict.iteritems():
             f.write('%s = %s\n' %(key, value))
         f.close()
+
+class ConfigRunnable(CliRunnable):
+    def __init__(self):
+        self.availableCommand = {
+            'get' : 'get a property to configuration file',
+            'set' : 'set a property to configuration file',
+        }
+
+    def get(self, argv):
+        if (len(argv) != 2):
+            print
+            print "config get <xml file> <name0;name1;...>"
+            sys.exit(-1)
+        conf = Configuration()
+        conf.addResources(argv[0])
+        for key in argv[1].split(';'):
+            print key, conf.get(key.strip())
+
+    def set(self, argv):
+        if (len(argv) != 2):
+            print
+            print "config set <xml file> <name0,value0;...>"
+            sys.exit(-1)
+        conf = Configuration()
+        conf.addResources(argv[0])
+        for keyvalue in argv[1].split(';'):
+            key, value = keyvalue.split(',')
+            key = key.strip()
+            value = value.strip()
+            conf.set(key, value)
+        conf.write(argv[0])
 
 def main(infile, outfile):
     conf = Configuration()

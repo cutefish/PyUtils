@@ -11,7 +11,7 @@ import sys
 import subprocess
 
 import pyutils.common.parser as ps
-import pyutils.common.clirunnable as clir
+from pyutils.common.clirunnable import CliRunnable
 
 class ResultCollector:
     """
@@ -88,7 +88,7 @@ class BasicCollector:
         self.result = (rcount, rsum, rave,
                        rstd, rmin, rmax)
 
-class ExprRunnalbe(clir.CliRunnable):
+class ExprRunnalbe(CliRunnable):
 
     def __init__(self):
         self.availableCommand = {

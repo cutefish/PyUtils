@@ -9,10 +9,10 @@ import os
 import re
 import sys
 
-import pyutils.common.clirunnable as clir
-import pyutils.common.configuration as cfg
 import pyutils.common.fileutils as fu
 import pyutils.expr.txtproc as tp
+from pyutils.common.clirunnable import CliRunnable
+from pyutils.common.config import Configuration
 from pyutils.expr.txtproc import Reducer
 from pyutils.expr.txtproc import KeyValueEmitter
 
@@ -57,7 +57,7 @@ class BasicStatsReduer(Reducer):
         return "BasicStatsReduer: " + \
                 "correction= %s" % self.correction
 
-class StatsRunnalbe(clir.CliRunnable):
+class StatsRunnalbe(CliRunnable):
 
     def __init__(self):
         self.availableCommand = {
@@ -81,7 +81,7 @@ class StatsRunnalbe(clir.CliRunnable):
         if len(argv) == 3:
             pathPattern = argv[2]
         path = fu.normalizeName(inputPath)
-        conf = cfg.Configuration()
+        conf = Configuration()
         conf.set(tp.INPUT_DIR_KEY, path)
         conf.set(tp.INPUT_FILTER_PATTERN_KEY, pathPattern)
         conf.set(tp.REDUCER_CLASS_KEY, "pyutils.expr.stats.BasicStatsReduer")

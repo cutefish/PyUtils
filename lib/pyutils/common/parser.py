@@ -4,13 +4,23 @@ Parser.py
 A object that has a parse() function
 """
 import re
+import shlex
 
 class Parser:
     def parse(self, obj):
         pass
 
 class KeyValParser(Parser):
+    """
+    KeyValParser:
+        Parses a string with key and value pattern.
 
+        pattern format {k:<key pattern>}<pattern>{v:<value pattern>}
+        special indicator:
+            %str, %numstr, %alpha, %lc, %uc, %name, %path, 
+            %int, %long, %dec, %bin, %oct, %hex, %float.
+
+    """
     SUPPORTED_TYPES = {
         '%str' : ('.+', str, 'any string'),
         '%numstr' : ('[0-9]+', str, 'number string'),
@@ -61,6 +71,34 @@ class KeyValParser(Parser):
         return 'pattern:%s, keyType:%s, valType:%s' %(
             self.pattern, self.keyType, self.valType)
 
+class CustomArgsParser():
+    """
+    CustomArgsParser:
+        Parses args with customized option keys.
 
+        Args and options are seperated by space. Strings within a pair of
+        quotes are of the same arg or option. Only specified customized options
+        are recognized and extracted. Other args are kept intact in order.
+    """
+    def __init__(self, optKeys, defaults={}):
+        self.optKeys = optKeys
+        self.options = defaults
+        self.otherArgs = []
 
+    def parse(self, args):
+        while len(args) > 0:
+            arg = args.pop(0)
+            if arg in self.optKeys:
+                self.options[arg] = args.pop(0)
+            else:
+                self.otherArgs.append(args.pop(0))
+
+    def getOtherArgs(self):
+        return _otherArgs
+
+    def getOption(self, key):
+        return self.options[key]
+
+    def getOptions(self):
+        return self.options
 
