@@ -12,13 +12,11 @@ import sys
 import pyutils.common.clirunnable as clir
 import pyutils.common.configuration as cfg
 import pyutils.common.fileutils as fu
-import pyutils.txtproc as tp
-import tp.LocalFileFetcher as LocalFileFetcher
-import tp.KeyValueEmitter as KeyValueEmitter
-import tp.Reducer as Reducer
-import tp.SysStdoutWriter as SysStdoutWriter
+import pyutils.expr.txtproc as tp
+from pyutils.expr.txtproc import Reducer
+from pyutils.expr.txtproc import KeyValueEmitter
 
-def BasicStatsReduer(Reducer):
+class BasicStatsReduer(Reducer):
     """
     Calculate count, sum, ave, std, min, max.
 
@@ -26,8 +24,8 @@ def BasicStatsReduer(Reducer):
     INVALID_VALUE_CORRECTION_KEY = "stats.basic.reducer.correction"
     DEFAULT_INVALID_VALUE_CORRECTION = 0
     def __init__(self, conf):
-        self.correction = conf.get(INVALID_VALUE_CORRECTION_KEY,
-                                   DEFAULT_INVALID_VALUE_CORRECTION,
+        self.correction = conf.get(self.INVALID_VALUE_CORRECTION_KEY,
+                                   self.DEFAULT_INVALID_VALUE_CORRECTION,
                                    float)
 
     def run(self, key, values):
@@ -55,7 +53,11 @@ def BasicStatsReduer(Reducer):
             rcount, rsum, rave, rstd, rmin, rmax)
         return key, value
 
-class StatsRunnalbe(clir.Clirunnable):
+    def __str__(self):
+        return "BasicStatsReduer: " + \
+                "correction= %s" % self.correction
+
+class StatsRunnalbe(clir.CliRunnable):
 
     def __init__(self):
         self.availableCommand = {
@@ -66,26 +68,33 @@ class StatsRunnalbe(clir.Clirunnable):
     def basics(self, argv):
         if (len(argv) < 2) or (len(argv) > 3):
             print
-            print "basic <parserString> <path> [pathFilterString]"
+            print "basic <key/val pattern> <path> [path filter pattern]"
             print
-            print "  <parserString>: re({k:KeyRegex}, {v:ValueRegex})"
+            print "  <key/val pattern>: re({k:KeyRegex}, {v:ValueRegex})"
             print '    example: "{k:bandwdith}: {v:%int} MByte / s"'
-            print "  [pathFilterString]: path filter regular expression"
+            print "  [path filter pattern]: path filter regular expression"
             print '    example: "[0-9]*"'
             sys.exit(-1)
         pattern = argv[0]
         inputPath = argv[1]
-        pathFilterString = '.*'
+        pathPattern = '.*'
         if len(argv) == 3:
-            pathFilterString = argv[2]
+            pathPattern = argv[2]
         path = fu.normalizeName(inputPath)
         conf = cfg.Configuration()
-        conf.set(tp.MODULE_FILE_KEY, self.__module__)
-        conf.set(LocalFileFetcher.INPUT_DIR_KEY, path)
-        conf.set(LocalFileFetcher.INPUT_FILTER_KEY, pathFilterString)
-        conf.set(tp.REDUCER_CLASS_KEY, "BasicStatsReduer")
+        conf.set(tp.INPUT_DIR_KEY, path)
+        conf.set(tp.INPUT_FILTER_PATTERN_KEY, pathPattern)
+        conf.set(tp.REDUCER_CLASS_KEY, "pyutils.expr.stats.BasicStatsReduer")
         conf.set(KeyValueEmitter.KEYVALUE_PARSE_PATTERN_KEY, pattern)
-        conf.set(tp.OUTPUT_CLASS_KEY, "pyutils.expr.txtpro")
+        conf.set(tp.OUTPUT_CLASS_KEY, "pyutils.expr.txtproc.SysStdoutWriter")
         proc = tp.TxtProc(conf)
+        print proc
         proc.run()
+
+def main():
+    obj = StatsRunnalbe()
+    obj.basics()
+
+if __name__ == '__main__':
+    main()
 

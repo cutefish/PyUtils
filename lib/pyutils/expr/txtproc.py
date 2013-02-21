@@ -7,95 +7,68 @@ This util implements a form of the MapReduce model where each split is strictly
 a text file.
 
 """
+import sys
 import time
 
-import pyutils.common.fileutils as fil
+import pyutils.common.clirunnable as clir
+import pyutils.common.fileutils as fu
 import pyutils.common.filter as fil
-import pyutils.common.reflectutils as ru
+import pyutils.common.importutils as iu
 import pyutils.common.parser as ps
 
-MODULE_FILE_KEY = "txtproc.module.filename"
+
+###########################################################
+# Settings
+###########################################################
+
+EXTRA_PATHS_KEY = "txtproc.extra.paths"
 INPUT_CLASS_KEY = "txtproc.input.class"
-MAPPER_CLASS_KEY = "txtproc.mapper"
-REDUCER_CLASS_KEY = "txtproc.reducer"
+MAPPER_CLASS_KEY = "txtproc.mapper.class"
+REDUCER_CLASS_KEY = "txtproc.reducer.class"
 OUTPUT_CLASS_KEY = "txtproc.output.class"
 KEY_CMP_CLASS_KEY = "txtproc.key.cmp.class"
 VAL_CMP_CLASS_KEY = "txtproc.val.cmp.class"
 OUTPUT_TOKEN_SEPERATOR_KEY = "txtproc.token.seperator"
 OUTPUT_LINE_SEPERATOR_KEY = "txtproc.line.seperator"
 
-DEFAULT_INPUT_CLASS = LocalFileFetcher
-DEFAULT_MAPPER_CLASS = KeyValueEmitter
-DEFAULT_REDUCER_CLASS = IdentityReducer
-DEFAULT_OUTPUT_CLASS = KeyValueFileWriter
-DEFAULT_OUTPUT_TOKEN_SEPERATOR = " "
-DEFAULT_OUTPUT_LINE_SEPERATOR = '\n'
+INPUT_DIR_KEY = "txtproc.input.local.dir"
+INPUT_FILTER_KEY = "txtproc.input.filter"
+INPUT_FILTER_PATTERN_KEY = "txtproc.input.filter.pattern"
 
-class TxtProc:
-    """
-    Process a set of text files.
-
-    The processing procedure conforms to a MapReduce programming model. The
-    granularity of mapper is a file. Files are fed to mappers, which
-    accordingly generates key/value pairs. The key/value pair stream then flows
-    to reducer and eventually is written to one file.
-
-    """
-    def __init__(self, conf):
-        if conf == None:
-            raise ValueError("Configuration not specified")
-        #get the module
-        modFileName = fu.normalizeName(conf.get(MODULE_FILE_KEY))
-        modName = modFileName.split('/')[-1].split('.')[0]
-        module = ru.loadFileModule(modName, modFileName)
-        #input class
-        self.inputs = ru.newInstance(
-            module, conf.get(INPUT_CLASS_KEY), conf, DEFAULT_OUTPUT_CLASS)
-        #mapper
-        self.mapper = ru.newInstance(
-            module, conf.get(MAPPER_CLASS_KEY), conf, DEFAULT_MAPPER_CLASS)
-        #reducer
-        self.mapper = ru.newInstance(
-            module, conf.get(REDUCER_CLASS_KEY), conf, DEFAULT_REDUCER_CLASS)
-        #output class
-        self.outputs = ru.newInstance(
-            module, conf.get(OUTPUT_CLASS_KEY), conf, DEFAULT_OUTPUT_CLASS)
-        #collector
-        self.collector = Collector()
-        #comparators
-        self.keyCmp = ru.newInstance(
-            module, conf.get(KEY_CMP_CLASS_KEY), conf, None)
-        self.valCmp = ru.newInstance(
-            module, conf.get(VAL_CMP_CLASS_KEY), conf, None)
-
-    def run(self):
-        #the map stage
-        while self.inputs.hasNext():
-            self.mapper.run(self.inputs.next(), self.collector)
-        self.collector.sort(self.keyCmp, self.valCmp)
-        #reduce stage
-        for key, values in self.collector.items():
-            key, value = self.reducer.run(key, values)
-            self.outputs.write(key, value)
+###########################################################
+# Specific Implements
+###########################################################
 
 class InputFetcher():
     def hasNext(self):
         pass
 
-    def next():
+    def next(self):
         pass
+
+    def __str__(self):
+        return 'InputFetcher: ' + self.__class__
 
 class Mapper():
     def run(self, fd, collector):
         pass
 
+    def __str__(self):
+        return 'Mapper: ' + self.__class__
+
 class Reducer():
     def run(self, key, values):
         pass
 
+    def __str__(self):
+        return 'Reducer: ' + self.__class__
+
 class OutputWriter():
     def write(key, value):
         pass
+
+    def __str__(self):
+        return 'OutputWriter: ' + self.__class__
 
 class Collector():
     """
@@ -106,19 +79,30 @@ class Collector():
     """
     def __init__(self, conf):
         self._dict = {}
-        self.items = []
+        self._items = []
+
+    def items(self):
+        return self._items
 
     def write(self, key, value):
         if not self._dict.has_key(key):
             self._dict[key] = []
         self._dict[key].append(value)
 
-    def sort(self, keyCmp, valueCmp):
+    def sort(self, keyCmp, valCmp):
+        if keyCmp != None:
+            keyFunc = self.cmp_to_key(keyCmp)
+        else:
+            keyFunc = None
+        if valCmp != None:
+            valFunc = self.cmp_to_key(valCmp)
+        else:
+            valFunc = None
         for key in sorted(self._dict.iterkeys(), 
-                          key=self.cmp_to_key(keyCmp)):
+                          key=keyFunc):
             values = sorted(self._dict[key],
-                            key=self.cmp_to_key(valCmp))
-            self.items.append((key, values))
+                            key=valFunc)
+            self._items.append((key, values))
 
     def cmp_to_key(mycmp):
         """Convert a cmp= function into a key= function."""
@@ -148,21 +132,18 @@ class Collector():
 
 class LocalFileFetcher(InputFetcher):
     """ Fetches file one by one. """
-    INPUT_DIR_KEY = "input.local.dir"
-    INPUT_FILTER_KEY = "input.filter"
 
-    DEFAULT_FILTER_CLASS = fil.RegexFilter
     def __init__(self, conf):
         self.flist = []
         rootdir = fu.normalizeName(conf.get(INPUT_DIR_KEY))
         if rootdir == None:
             raise ValueError("input.local.dir not specified.")
-        modFileName = fu.normalizeName(conf.get(MODULE_FILE_KEY))
-        modName = modFileName.split('/')[-1].split('.')[0]
-        module = ru.loadFileModule(modName, modFileName)
-        fileFilter = ru.newInstance(
-            module, conf.get(INPUT_FILTER_KEY), conf, DEFAULT_FILTER_CLASS)
-        for f, s in fu.iterFiles(self.rootdir):
+        extraPaths = conf.getStrings(EXTRA_PATHS_KEY)
+        filterCls = conf.getClass(INPUT_FILTER_KEY, DEFAULT_FILTER_CLASS,
+                                  extraPaths)
+        pattern = conf.get(INPUT_FILTER_PATTERN_KEY)
+        fileFilter = filterCls(pattern)
+        for f, s in fu.iterFiles(rootdir):
             if fileFilter != None:
                 if (not fileFilter.accept(f)):
                     continue
@@ -174,6 +155,9 @@ class LocalFileFetcher(InputFetcher):
     def next(self):
         return open(self.flist.pop(), 'r');
 
+    def __str__(self):
+        return str(self.flist)
+
 class KeyValueEmitter(Mapper):
     """
     Emit key/value pairs for each line using KeyValParser.
@@ -184,7 +168,7 @@ class KeyValueEmitter(Mapper):
     KEYVALUE_PARSE_PATTERN_KEY = "keyvalue.parse.patterns"
     def __init__(self, conf):
         self.parsers = []
-        patterns = conf.get("KEYVALUE_PARSE_PATTERN_KEY")
+        patterns = conf.get(self.KEYVALUE_PARSE_PATTERN_KEY)
         if patterns == None:
             raise ValueError("key value pattern not set")
         for pattern in patterns.split('"'):
@@ -198,6 +182,15 @@ class KeyValueEmitter(Mapper):
                 key, val = parser.parse(line)
                 collector.write(key, val)
         fd.close()
+
+    def __str__(self):
+        ret = ""
+        ret += "KeyValueEmitter: parsers: " 
+        ret += "["
+        for p in self.parsers:
+            ret += "( " + str(p) + "), "
+        ret += "]"
+        return ret
 
 class IdentityReducer(Reducer):
     """Combine all the values to a space separated string."""
@@ -221,12 +214,15 @@ class KeyValueFileWriter(OutputWriter):
         self.lsep = conf.get(
             OUTPUT_LINE_SEPERATOR_KEY, DEFAULT_OUTPUT_LINE_SEPERATOR)
 
-    def write(key, value):
+    def write(self, key, value):
         self.fd.write("%s%s%s%s" %(key, self.tsep, value, self.lsep))
 
     def __del__(self):
         self.fd.close()
 
+    def __str__(self):
+        return "KeyValueFileWriter: " + \
+                "out file= " + self.fd.name
 
 class SysStdoutWriter(OutputWriter):
     def __init__(self, conf):
@@ -235,6 +231,108 @@ class SysStdoutWriter(OutputWriter):
         self.lsep = conf.get(
             OUTPUT_LINE_SEPERATOR_KEY, DEFAULT_OUTPUT_LINE_SEPERATOR)
 
-    def write(key, value):
+    def write(self, key, value):
         print "%s%s%s%s" %(key, self.tsep, value, self.lsep)
+
+    def __str__(self):
+        return "SysStdoutWriter."
+
+###########################################################
+# TxtProc
+###########################################################
+
+DEFAULT_INPUT_CLASS = LocalFileFetcher
+DEFAULT_MAPPER_CLASS = KeyValueEmitter
+DEFAULT_REDUCER_CLASS = IdentityReducer
+DEFAULT_OUTPUT_CLASS = KeyValueFileWriter
+DEFAULT_OUTPUT_TOKEN_SEPERATOR = " "
+DEFAULT_OUTPUT_LINE_SEPERATOR = '\n'
+
+DEFAULT_FILTER_CLASS = fil.RegexFilter
+
+class TxtProc:
+    """
+    Process a set of text files.
+
+    The processing procedure conforms to a MapReduce programming model. The
+    granularity of mapper is a file. Files are fed to mappers, which
+    accordingly generates key/value pairs. The key/value pair stream then flows
+    to reducer and eventually is written to one file.
+
+    """
+    def __init__(self, conf):
+        if conf == None:
+            raise ValueError("Configuration not specified")
+        #get the module
+        extraPaths = conf.getStrings(EXTRA_PATHS_KEY)
+        #input class
+        inputsCls = conf.getClass(INPUT_CLASS_KEY, DEFAULT_INPUT_CLASS,
+                                  extraPaths)
+        self.inputs = inputsCls(conf)
+        #mapper
+        mapperCls = conf.getClass(MAPPER_CLASS_KEY, DEFAULT_MAPPER_CLASS,
+                                  extraPaths)
+        self.mapper = mapperCls(conf)
+        #reducer
+        reducerCls = conf.getClass(REDUCER_CLASS_KEY, DEFAULT_REDUCER_CLASS, 
+                                   extraPaths)
+        self.reducer = reducerCls(conf)
+        #output class
+        outputCls = conf.getClass(OUTPUT_CLASS_KEY, DEFAULT_OUTPUT_CLASS, 
+                                  extraPaths)
+        self.outputs = outputCls(conf)
+        #collector
+        self.collector = Collector(conf)
+        #comparators
+        self.keyCmp = conf.getClass(KEY_CMP_CLASS_KEY, path=extraPaths)
+        self.valCmp = conf.getClass(VAL_CMP_CLASS_KEY, path=extraPaths)
+
+    def run(self):
+        #the map stage
+        while self.inputs.hasNext():
+            self.mapper.run(self.inputs.next(), self.collector)
+        self.collector.sort(self.keyCmp, self.valCmp)
+        #reduce stage
+        for key, values in self.collector.items():
+            key, value = self.reducer.run(key, values)
+            self.outputs.write(key, value)
+
+    def __str__(self):
+        ret = ""
+        ret += "TxtProc: \n"
+        ret += "inputs: " + str(self.inputs) + "\n"
+        ret += "mapper: " + str(self.mapper) + "\n"
+        ret += "reducer: " + str(self.reducer) + "\n"
+        ret += "outputs: " + str(self.outputs) + "\n"
+        return ret
+
+class TxtProcRunnable(clir.CliRunnable):
+    def __init__(self):
+        self.availableCommand = {
+            'showconf': 'show the configurations',
+            'run': 'run processing with configurations',
+        }
+
+    def showconf(self, argv):
+        if (len(argv) != 1):
+            print
+            print "showconf <conf>"
+            sys.exit(-1)
+        cfgFile = argv[0]
+        conf = cfg.Configuration()
+        conf.addResources(cfgFile)
+        proc = TxtProc(conf)
+        print proc
+
+    def process(self, argv):
+        if (len(argv) != 1):
+            print
+            print "process <conf>"
+            sys.exit(-1)
+        cfgFile = argv[0]
+        conf = cfg.Configuration()
+        conf.addResources(cfgFile)
+        proc = TxtProc(conf)
+        proc.run()
+
 

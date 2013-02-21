@@ -8,7 +8,7 @@ entry of a module.
 
 import sys
 
-class Clirunnable:
+class CliRunnable:
 
     def __init__(self):
         """Initialize an availabe command dictionary.

@@ -17,7 +17,7 @@ from boto.ec2.blockdevicemapping import BlockDeviceMapping
 import pyutils.common.fileutils as fu
 import pyutils.common.clirunnable as clir
 
-class EC2Runnable(clir.Clirunnable):
+class EC2Runnable(clir.CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'startCluster': 'Start a ec2 cluster',

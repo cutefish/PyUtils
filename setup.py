@@ -7,7 +7,7 @@ BASHRC_FILE = os.path.abspath(os.path.expanduser('~/.bashrc'))
 
 BASHSCRIPT_STRING = """
 ### PyUtils setup BEGIN
-export PYUTILSHOME=%s/lib
+export PYUTILSHOME=%s
 export PYTHONPATH=$PYTHONPATH:%s/lib
 export PATH=$PATH:%s/bin
 ### PyUtils setup END

@@ -14,11 +14,7 @@ class Filter:
         return True
 
 class RegexFilter:
-    REGEX_FILTER_PATTERN_KEY = "regex.filter.pattern"
-    def __init__(self, conf):
-        pattern = conf.get(REGEX_FILTER_PATTERN_KEY)
-        if (pattern == None):
-            pattern = ""
+    def __init__(self, pattern):
         self.regex = re.compile(pattern)
 
     def accept(self, string):

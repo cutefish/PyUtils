@@ -88,7 +88,7 @@ class BasicCollector:
         self.result = (rcount, rsum, rave,
                        rstd, rmin, rmax)
 
-class ExprRunnalbe(clir.Clirunnable):
+class ExprRunnalbe(clir.CliRunnable):
 
     def __init__(self):
         self.availableCommand = {

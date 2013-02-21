@@ -20,6 +20,7 @@ class KeyValParser(Parser):
         '%name' : ('[a-zA-Z_-]+', str, 'regular name'),
         '%path' : ('[a-zA-Z_-/]+', str, 'path name'),
         '%int' : ('[-+0-9]+', int, 'decimal'),
+        '%long' : ('[-+0-9]+', long, 'decimal'),
         '%dec' : ('[-+0-9]+', int, 'decimal'),
         '%bin' : ('[-+01]+', int, 'binary'),
         '%oct' : ('[-+0-7]+', int, 'octal'),

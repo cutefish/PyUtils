@@ -11,7 +11,7 @@ import subprocess
 import pyutils.common.fileutils as fu
 import pyutils.common.clirunnable as clir
 
-class BroadCastRunnable(clir.Clirunnable):
+class BroadCastRunnable(clir.CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'gather': 'Copy a dir/file to all nodes',

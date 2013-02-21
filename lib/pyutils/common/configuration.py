@@ -3,6 +3,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 import fileutils as fu
+import importutils as iu
 
 class Configuration:
     VAR_MATCH = '\$\{[^}$\s]+\}'
@@ -34,15 +35,19 @@ class Configuration:
         else:
             return default
 
-    def getStrings(self, key, default=None):
-        listStr = self.get(key, default)
+    def getStrings(self, key, default=[]):
+        listStr = self.get(key, "")
+        if listStr == None:
+            return default
         strList = re.split('\s*,\s*', listStr)
         for i in range(len(strList)):
             strList[i] = self._subVar(strList[i])
         return strList
 
-    def getIntRange(self, key, default=None):
-        listStr = self.get(key, default)
+    def getIntRange(self, key, default=[]):
+        listStr = self.get(key, "")
+        if listStr == None:
+            return default
         strList = re.split('\s*,\s*', listStr)
         ret = set([])
         for s in strList:
@@ -59,6 +64,17 @@ class Configuration:
             else:
                 ret.add(int(s))
         return sorted(ret)
+
+    def getClass(self, key, default=None, path=[]):
+        clsName = self.get(key, None)
+        if clsName == None:
+            return default
+        try:
+            cls = iu.loadClass(clsName, path)
+            return cls
+        except ImportError as ie:
+            print ie
+            return default
 
     def _subVar(self, var):
         match = re.match(self.VAR_MATCH, var)

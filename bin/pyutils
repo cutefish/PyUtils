@@ -3,23 +3,24 @@
 import sys
 import imp
 import os
-import pyutils.common.reflectutils as ru
+import pyutils
+import pyutils.common.importutils as iu
 import pyutils.common.clirunnable as clir
 
 #search available packages
 if os.environ['PYUTILSHOME'] == None:
     print 'PyUtils not properly set up, please run setup.py again'
     sys.exit(-1)
+pkgPath = os.environ['PYUTILSHOME'] + '/lib'
+if pkgPath not in sys.path:
+    print 'PyUtils not in system path, perhaps need "source ~/.bashrc" '
+    sys.exit(-1)
 
-pkgDir = os.environ['PYUTILSHOME'] + '/pyutils'
-
-null, pkgPath, desc = imp.find_module('pyutils')
-pyutils = imp.load_module('pyutils', null, pkgPath, desc)
-
+#check for available modules
 availableModules = []
-for path in os.listdir(pkgDir):
+for path in os.listdir(pkgPath + '/pyutils'):
     try:
-        fileObj, pathname, desc = imp.find_module(path, pyutils.__path__)
+        imp.find_module(path, pyutils.__path__)
         availableModules.append(path)
     except ImportError:
         pass
@@ -32,11 +33,14 @@ if len(sys.argv) < 2:
     printUsage()
     sys.exit(-1)
 
+moduleName = 'pyutils.' + sys.argv[1]
 try:
-    m = ru.loadPkgModule(sys.argv[1], pyutils)
+    m = iu.loadModule(moduleName)
 except ImportError as ie:
-    print "Error importing module: " + ie.args[0]
-    print "cause: " + str(ie.args[1])
+    lname, m, n, e = ie.args
+    print "Error importing module: " + lname + "." + n
+    print "cause: " + str(e)
+    print "loaded: " + str(m)
     sys.exit(-1)
 
 if m.__file__.endswith('__init__.py') or m.__file__.endswith('__init__.pyc'):
@@ -51,7 +55,7 @@ if m.__file__.endswith('__init__.py') or m.__file__.endswith('__init__.pyc'):
         print "modules not exposed for package: " + m.__name__
         sys.exit(-1)
 else:
-    cls = ru.getSubClass(m, clir.Clirunnable)
+    cls = iu.loadClass(moduleName, base=clir.CliRunnable)
     if cls == None:
         print "No clirunnable class defined in module: " + m.__name__
         sys.exit(-1)
