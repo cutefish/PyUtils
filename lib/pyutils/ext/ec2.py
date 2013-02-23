@@ -17,7 +17,7 @@ from boto.ec2.blockdevicemapping import BlockDeviceMapping
 import pyutils.common.fileutils as fu
 from pyutils.common.clirunnable import CliRunnable
 
-class EC2Runnable(clir.CliRunnable):
+class EC2Runnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'startCluster': 'Start a ec2 cluster',
@@ -79,10 +79,14 @@ class EC2Runnable(clir.CliRunnable):
 
     #get running ip
     def getRunningIp(self, argv):
-        if len(argv) != 1:
-            print "hadoop getRunningIp <regionName>"
+        if len(argv) < 1:
+            print "hadoop getRunningIp <regionName> [outdir]"
             sys.exit(-1)
         regionName = argv[0]
+        try:
+            outdir = argv[1].rstrip('/')
+        except:
+            outdir = '/tmp'
         pubIpList = []
         priIpList = []
         region = boto.ec2.get_region(regionName)
@@ -95,8 +99,8 @@ class EC2Runnable(clir.CliRunnable):
                     pubIpList.append(publicIp)
                     privateIp = instance.private_ip_address
                     priIpList.append(privateIp)
-        fu.listToFile('/tmp/ec2Public', pubIpList)
-        fu.listToFile('/tmp/ec2Private', priIpList)
+        fu.listToFile('%s/ec2Public' %outdir, pubIpList)
+        fu.listToFile('%s/ec2Private' %outdir, priIpList)
         print "Up nodes: ", len(pubIpList)
         if (len(pubIpList) != 0):
             print "First ip address: ", pubIpList[0]

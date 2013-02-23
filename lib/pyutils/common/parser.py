@@ -10,6 +10,9 @@ class Parser:
     def parse(self, obj):
         pass
 
+    def __str__(self):
+        return self.__name__
+
 class KeyValParser(Parser):
     """
     KeyValParser:
@@ -91,13 +94,16 @@ class CustomArgsParser():
             if arg in self.optKeys:
                 self.options[arg] = args.pop(0)
             else:
-                self.otherArgs.append(args.pop(0))
+                self.otherArgs.append(arg)
 
     def getOtherArgs(self):
-        return _otherArgs
+        return self.otherArgs
 
     def getOption(self, key):
-        return self.options[key]
+        if self.options.has_key(key):
+            return self.options[key]
+        else:
+            return None
 
     def getOptions(self):
         return self.options
