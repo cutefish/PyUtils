@@ -34,7 +34,7 @@ class SSHOption:
         The overwrite priority is args > configuration > system environement.
 
         Returns an option string or empty string."""
-        if args != None and args != "":
+        if args != None:
             return args
         ret = None
         if conf != None:
@@ -50,7 +50,7 @@ class SSHOption:
 
     def __str__(self):
         if self.options == "":
-            return " "
+            return ""
         return ' %s' %self.options.strip(' ')
 
 class SSHCommand:
@@ -74,7 +74,13 @@ class SSHCommand:
         shell = 'ssh%s %s@%s %s' %(self.options, self.user,
                                    self.hostname, self.command)
         print 'SSHCommand: %s' %shell
-        return subprocess.check_output(shlex.split(shell))
+        try:
+            return subprocess.check_output(shlex.split(shell))
+        except AttributeError:
+            #A flawed patch for version < 2.7
+            #if output is large, the control flow will be blocked?
+            proc = subprocess.Popen(shlex.split(shell), stdout=subprocess.PIPE)
+            return proc.stdout.read()
 
 class SSHRunnable(CliRunnable):
     def __init__(self):
@@ -88,7 +94,7 @@ class SSHRunnable(CliRunnable):
         ])
 
     def cmd(self, argv):
-        if (len(argv) != 3):
+        if (len(argv) < 3):
             print
             print 'ssh cmd <user> <host-file>:<range> <command> [options]'
             print '  options:'
@@ -124,7 +130,7 @@ class SSHRunnable(CliRunnable):
 
 
 def main(ip, command):
-    options = SSHOption("")
+    options = SSHOption()
     options.addOption(SSHOption.OPT_NO_STRICT_HOST_KEY_CHECKING)
     options.addOption(SSHOption.OPT_NO_USER_KNOWN_HOSTS_FILE)
     options.addOption('-i /hadoop/ec2/mrioec2keypriv.pem')
