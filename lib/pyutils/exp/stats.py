@@ -1,5 +1,5 @@
 """
-expr.stats
+exp.stats
 
 Statistics Module
 
@@ -10,11 +10,11 @@ import re
 import sys
 
 import pyutils.common.fileutils as fu
-import pyutils.expr.txtproc as tp
+import pyutils.exp.txtproc as tp
 from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.config import Configuration
-from pyutils.expr.txtproc import Reducer
-from pyutils.expr.txtproc import KeyValueEmitter
+from pyutils.exp.txtproc import Reducer
+from pyutils.exp.txtproc import KeyValueEmitter
 
 class BasicStatsReduer(Reducer):
     """
@@ -84,9 +84,9 @@ class StatsRunnalbe(CliRunnable):
         conf = Configuration()
         conf.set(tp.INPUT_DIR_KEY, path)
         conf.set(tp.INPUT_FILTER_PATTERN_KEY, pathPattern)
-        conf.set(tp.REDUCER_CLASS_KEY, "pyutils.expr.stats.BasicStatsReduer")
+        conf.set(tp.REDUCER_CLASS_KEY, "pyutils.exp.stats.BasicStatsReduer")
         conf.set(KeyValueEmitter.KEYVALUE_PARSE_PATTERN_KEY, pattern)
-        conf.set(tp.OUTPUT_CLASS_KEY, "pyutils.expr.txtproc.SysStdoutWriter")
+        conf.set(tp.OUTPUT_CLASS_KEY, "pyutils.exp.txtproc.SysStdoutWriter")
         proc = tp.TxtProc(conf)
         print proc
         proc.run()

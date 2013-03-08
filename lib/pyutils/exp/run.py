@@ -1,6 +1,6 @@
 
 """
-expr.run
+exp.run
 
 Experiment Runnable Module
 

@@ -1,5 +1,5 @@
 """
-expr.txtproc
+exp.txtproc
 
 A text processing util. 
 

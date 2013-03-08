@@ -6,6 +6,7 @@ common file operations
 
 """
 import os
+import re
 import shutil
 
 def normalizeName(fileName):
@@ -54,7 +55,7 @@ def iterFiles(rootDir, ignoreError=True):
                 else:
                     raise e
 
-def replaceWith(inPath, outPath, pattern, replace, maxNumReplace=0):
+def replace(inPath, outPath, pattern, replace, maxNumReplace=0):
     """Replace a pattern in file and return the number replaced
     Arguments:
     inPath          -- input file name
@@ -67,7 +68,7 @@ def replaceWith(inPath, outPath, pattern, replace, maxNumReplace=0):
     """
     inputFile = open(inPath, 'r')
     if (inPath == outPath):
-        tmpPath = '/tmp/_%s_temporary' %inputPath.baseName()
+        tmpPath = '/tmp/_%s_temporary' %os.path.basename(inPath)
     else:
         tmpPath = outPath
     outputFile = open(tmpPath, 'w')
