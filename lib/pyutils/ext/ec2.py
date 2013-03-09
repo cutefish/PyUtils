@@ -67,7 +67,8 @@ class EC2Runnable(CliRunnable):
         group = raw_input("enter securityGroup:\n%s\n>>"%groupInfo)
         keys = conn.get_all_key_pairs()
         if len(keys) == 1:
-            key = keys
+            key = keys[0].name
+            print 'using default key: ' + key
         else:
             keyInfo = '\n'.join(str(key).split(':')[1] for key in keys)
             key = raw_input("enter key name:\n%s\n>>"%keyInfo)
@@ -75,7 +76,7 @@ class EC2Runnable(CliRunnable):
         reservation = conn.run_instances(
             imageId, min_count=numNodes, max_count=numNodes, placement=availZone,
             security_groups = [group], instance_type=instanceType,
-            block_device_map=mapping)
+            block_device_map=mapping, key_name=key)
 
     #get running ip
     def getRunningIp(self, argv):
