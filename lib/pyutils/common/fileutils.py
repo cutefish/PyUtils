@@ -30,10 +30,11 @@ def listToFile(fileName, ls):
         f.write(str(l) + '\n')
     f.close()
 
-def listFiles(rootDir, ignoreError=True):
+def listFiles(rootDir, topdown=True, onerror=None, followlinks=False):
     fileList = []
     sizeList = []
-    for root, subFolders, files in os.walk(rootDir):
+    for root, subFolders, files in os.walk(
+        rootDir, topdown, onerror, followlinks):
         for f in files:
             try:
                 f = os.path.abspath(os.path.join(root, f))
@@ -46,8 +47,9 @@ def listFiles(rootDir, ignoreError=True):
                     raise e
     return fileList, sizeList
 
-def iterFiles(rootDir, ignoreError=True):
-    for root, subFolders, files in os.walk(rootDir):
+def iterFiles(rootDir, topdown=True, onerror=None, followlinks=False):
+    for root, subFolders, files in os.walk(
+        rootDir, topdown, onerror, followlinks):
         for f in files:
             try:
                 f = os.path.abspath(os.path.join(root, f))
@@ -101,11 +103,11 @@ def replace(inPath, outPath, pattern, replace, maxNumReplace=0):
 
 def catFiles(rootDir, filterString='.*', out=sys.stdout):
     pattern = re.compile(filterString)
-    for f, size in iterFiles(rootDir):
+    for f, size in iterFiles(rootDir, followlinks=True):
         if pattern.search(f) != None:
-            out.write("##################################################\n");
+            out.write('#'*80 + '\n');
             out.write("%s\n"%f)
-            out.write("##################################################\n");
+            out.write('#'*80 + '\n');
             fd = open(f, 'r')
             for line in fd:
                 out.write(line)
@@ -118,8 +120,11 @@ class FURunnable(CliRunnable):
         }
 
     def catfiles(self, argv):
-        if (len(argv) != 2):
+        if (len(argv) == 1):
+            catFiles(normalizeName(argv[0]))
+        elif (len(argv) == 2):
+            catFiles(normalizeName(argv[0]), argv[1])
+        else:
             print
             print "fileutils catfiles <root dir> [filter string]"
             sys.exit(-1)
-        catFiles(normalizeName(argv[0]), argv[1])
