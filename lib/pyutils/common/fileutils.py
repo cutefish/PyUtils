@@ -8,6 +8,9 @@ common file operations
 import os
 import re
 import shutil
+import sys
+
+from pyutils.common.clirunnable import CliRunnable
 
 def normalizeName(fileName):
     return os.path.abspath(os.path.expanduser(fileName))
@@ -96,4 +99,27 @@ def replace(inPath, outPath, pattern, replace, maxNumReplace=0):
         shutil.move(tmpPath, outPath)
     return count
 
+def catFiles(rootDir, filterString='.*', out=sys.stdout):
+    pattern = re.compile(filterString)
+    for f, size in iterFiles(rootDir):
+        if pattern.search(f) != None:
+            out.write("##################################################\n");
+            out.write("%s\n"%f)
+            out.write("##################################################\n");
+            fd = open(f, 'r')
+            for line in fd:
+                out.write(line)
+            fd.close()
 
+class FURunnable(CliRunnable):
+    def __init__(self):
+        self.availableCommand = {
+            'catfiles' : 'cat all files in a root directory',
+        }
+
+    def catfiles(self, argv):
+        if (len(argv) != 2):
+            print
+            print "fileutils catfiles <root dir> [filter string]"
+            sys.exit(-1)
+        catFiles(normalizeName(argv[0]), argv[1])
