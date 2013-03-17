@@ -64,7 +64,7 @@ class SSHOptions:
             try:
                 key, value = kv.split(',')
             except ValueError:
-                key = DEFAULT_SSH_KEY
+                key = SSHOptions.DEFAULT_SSH_KEY
                 value = kv
             key.strip(' ')
             value.strip(' ')
@@ -83,7 +83,7 @@ class SSHOptions:
                 option = value
                 break
         if option == None:
-            return ""
+            option = self.conf.getv(SSHOptions.DEFAULT_SSH_KEY)
         if option == "":
             return ""
         return " " + option
