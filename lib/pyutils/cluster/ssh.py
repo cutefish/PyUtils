@@ -5,6 +5,7 @@ ssh related utils.
 
 """
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -14,44 +15,84 @@ from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.config import Configuration
 from pyutils.common.parser import CustomArgsParser
 
-class SSHOption:
+class SSHOptions:
     """ Options of the ssh command.  """
-    DEFAULT_SSH_OPTIONS_KEY = "SSH_OPTIONS"
-
+    ENV_SSH_KEY = "SSH_OPTIONS"
+    DEFAULT_SSH_KEY = "default"
     OPT_NO_STRICT_HOST_KEY_CHECKING = "-o StrictHostKeyChecking=no"
     OPT_NO_USER_KNOWN_HOSTS_FILE = "-o UserKnownHostsFile=/dev/null"
 
-    def __init__(self, args=None, conf=None, 
-                 key=DEFAULT_SSH_OPTIONS_KEY):
-        self.options = self.findSSHOptions(args, conf)
-        self.options = self.options.strip(' ')
+    def __init__(self, options=None, cfgFile=None):
+        """ Construct the options of keys. """
+        self.conf = Configuration()
+        self.conf.setv(SSHOptions.DEFAULT_SSH_KEY, "")
+        self.initOptions(options, cfgFile)
 
-    def findSSHOptions(self, args, conf, 
-                       key=DEFAULT_SSH_OPTIONS_KEY):
-        """Find the SSH option setting.
+    def initOptions(self, options, cfgFile):
+        """Find the SSH option setving.
 
-        SSH options can be set in args, configuration or system environment.
-        The overwrite priority is args > configuration > system environement.
+        SSH options can be set in runtime, system environment or searched in
+        config.  The overwrite priority is options > system environement >
+        configuration.
+        
+        System env format:
+            SSH_OPTIONS=[[key,]value>:]*<[key,]value>
 
-        Returns an option string or empty string."""
-        if args != None:
-            return args
-        ret = None
-        if conf != None:
-            ret = conf.get(key)
-        if ret != None:
-            return ret
-        if os.environ[key] != None:
-            return os.environ[key]
-        return ""
+        Configuration file format:
+            key=value
 
-    def addOption(self, opt):
-        self.options = '%s %s' %(self.options, opt.strip(' '))
+        """
+        if cfgFile == None:
+            cfgFile = '/home/%s/.ssh/options.prop' %(os.environ['USER'])
+        try:
+            self.conf.addResources(cfgFile)
+        except IOError:
+            pass
+        try:
+            self.parseEnv(os.environ[SSHOptions.ENV_SSH_KEY])
+        except KeyError:
+            pass
+        if options == None:
+            return
+        for key, value in options.iteritems():
+            self.conf.setv(key, value)
+        return
+
+    def parseEnv(self, string):
+        keyvalues = string.split(':')
+        for kv in keyvalues:
+            try:
+                key, value = kv.split(',')
+            except ValueError:
+                key = DEFAULT_SSH_KEY
+                value = kv
+            key.strip(' ')
+            value.strip(' ')
+            self.conf.setv(key, value)
+
+    def setOpt(self, key, value):
+        key.strip(' ')
+        value.strip(' ')
+        self.conf.setValue(key, value)
+
+    def getOpt(self, target):
+        option = None
+        for key, value in self.conf.iteritems():
+            if re.search(key, target) != None or \
+               re.search(target, key) != None:
+                option = value
+                break
+        if option == None:
+            return ""
+        if option == "":
+            return ""
+        return " " + option
+
+    def iteritems(self):
+        return self.conf.iteritems()
 
     def __str__(self):
-        if self.options == "":
-            return ""
-        return ' %s' %self.options.strip(' ')
+        return str(self.conf)
 
 class SSHCommand:
     """ SSH Command, which can be executed remotely on a node through ssh. """
@@ -60,7 +101,7 @@ class SSHCommand:
         self.user = user.strip(' ')
         self.hostname = hostname.strip(' ')
         self.command = command.strip(' ')
-        self.options = options
+        self.options = SSHOptions(options)
         self.stdout = stdout
 
     def checkOutput(self):
@@ -71,8 +112,8 @@ class SSHCommand:
         CalledProcessError object will have the return code in the returncode
         attribute and any output in the output attribute.
         """
-        shell = 'ssh%s %s@%s %s' %(self.options, self.user,
-                                   self.hostname, self.command)
+        shell = 'ssh%s %s@%s %s' %(self.options.getOpt(self.hostname), 
+                                   self.user, self.hostname, self.command)
         print 'SSHCommand: %s' %shell
         try:
             return subprocess.check_output(shlex.split(shell))
@@ -89,8 +130,6 @@ class SSHRunnable(CliRunnable):
         }
         self.argsParser = CustomArgsParser([
             '--conf',
-            '--option',
-            '--option-key',
         ])
 
     def cmd(self, argv):
@@ -99,16 +138,9 @@ class SSHRunnable(CliRunnable):
             print 'ssh cmd <user> <host-file>:<range> <command> [options]'
             print '  options:'
             print '    --conf configuration file'
-            print '    --option ssh option string'
-            print '    --option-key ssh option key'
             sys.exit(-1)
         self.argsParser.parse(argv)
-        conf = Configuration()
-        conf.addResources(self.argsParser.getOption('--conf'))
-        options = self.argsParser.getOption('--option')
-        optionKey = self.argsParser.getOption('--option-key')
-        if optionKey == None:
-            optionKey = SSHOption.DEFAULT_SSH_OPTIONS_KEY
+        sshoptions = SSHOptions(cfgFile=self.argsParser.getOption('--conf'))
         otherArgs = self.argsParser.getOtherArgs()
         user = otherArgs[0]
         hostFile, r = otherArgs[1].split(':')
@@ -123,20 +155,6 @@ class SSHRunnable(CliRunnable):
                 end = len(allHosts)
             else:
                 end = int(rangebound[1]) + 1
-        sshopt = SSHOption(options, conf)
         for i in range(start, end):
-            sshcmd = SSHCommand(user, allHosts[i], command, sshopt)
+            sshcmd = SSHCommand(user, allHosts[i], command, sshoptions)
             print sshcmd.checkOutput()
-
-
-def main(ip, command):
-    options = SSHOption()
-    options.addOption(SSHOption.OPT_NO_STRICT_HOST_KEY_CHECKING)
-    options.addOption(SSHOption.OPT_NO_USER_KNOWN_HOSTS_FILE)
-    options.addOption('-i /hadoop/ec2/mrioec2keypriv.pem')
-    sshcmd = SSHCommand('ec2-user', ip, command, options)
-    print sshcmd.checkOutput()
-
-if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
-

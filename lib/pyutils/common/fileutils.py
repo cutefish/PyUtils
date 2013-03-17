@@ -105,12 +105,15 @@ def catFiles(rootDir, filterString='.*', out=sys.stdout):
     pattern = re.compile(filterString)
     for f, size in iterFiles(rootDir, followlinks=True):
         if pattern.search(f) != None:
-            out.write('#'*80 + '\n');
+            out.write('\n')
+            out.write('#'*36 + ' FILE  ' + '#'*37 + '\n');
             out.write("%s\n"%f)
-            out.write('#'*80 + '\n');
+            out.write('#'*36 + ' START ' + '#'*37 + '\n');
             fd = open(f, 'r')
             for line in fd:
                 out.write(line)
+            out.write('\n')
+            out.write('#'*36 + '  END  ' + '#'*37 + '\n');
             fd.close()
 
 class FURunnable(CliRunnable):

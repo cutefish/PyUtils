@@ -177,13 +177,13 @@ class LocalFileFetcher(InputFetcher):
     """
     def __init__(self, conf):
         self.flist = []
-        rootdir = fu.normalizeName(conf.get(INPUT_DIR_KEY))
+        rootdir = fu.normalizeName(conf.gett(INPUT_DIR_KEY))
         if rootdir == None:
             raise ValueError("input.local.dir not specified.")
         extraPaths = conf.getStrings(EXTRA_PATHS_KEY)
         filterCls = conf.getClass(INPUT_FILTER_KEY, DEFAULT_FILTER_CLASS,
                                   extraPaths)
-        pattern = conf.get(INPUT_FILTER_PATTERN_KEY)
+        pattern = conf.gett(INPUT_FILTER_PATTERN_KEY)
         fileFilter = filterCls(pattern)
         for f, s in fu.iterFiles(rootdir):
             if fileFilter != None:
@@ -211,7 +211,7 @@ class KeyValueEmitter(Mapper):
     KEYVALUE_PARSE_PATTERN_KEY = "keyvalue.parse.patterns"
     def __init__(self, conf):
         self.parsers = []
-        patterns = conf.get(self.KEYVALUE_PARSE_PATTERN_KEY)
+        patterns = conf.gett(self.KEYVALUE_PARSE_PATTERN_KEY)
         if patterns == None:
             raise ValueError("key value pattern not set")
         for pattern in patterns.split('"'):
@@ -254,11 +254,11 @@ class KeyValueFileWriter(OutputWriter):
     DEFAULT_FILENAME = "./out_%s" %(int(time.time()))
     def __init__(self, conf):
         filename = fu.normalizeName(
-            conf.get(OUTPUT_FILENAME_KEY, DEFAULT_FILENAME))
+            conf.gett(OUTPUT_FILENAME_KEY, DEFAULT_FILENAME))
         self.fd = open(filename, 'w')
-        self.tsep = conf.get(
+        self.tsep = conf.gett(
             OUTPUT_TOKEN_SEPERATOR_KEY, DEFAULT_OUTPUT_TOKEN_SEPERATOR)
-        self.lsep = conf.get(
+        self.lsep = conf.gett(
             OUTPUT_LINE_SEPERATOR_KEY, DEFAULT_OUTPUT_LINE_SEPERATOR)
 
     def write(self, key, value):
@@ -276,9 +276,9 @@ class SysStdoutWriter(OutputWriter):
     @class SysStdoutWriter: Write output to sys.stdout.
     """
     def __init__(self, conf):
-        self.tsep = conf.get(
+        self.tsep = conf.gett(
             OUTPUT_TOKEN_SEPERATOR_KEY, DEFAULT_OUTPUT_TOKEN_SEPERATOR)
-        self.lsep = conf.get(
+        self.lsep = conf.gett(
             OUTPUT_LINE_SEPERATOR_KEY, DEFAULT_OUTPUT_LINE_SEPERATOR)
 
     def write(self, key, value):

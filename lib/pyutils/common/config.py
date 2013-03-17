@@ -31,14 +31,14 @@ class Configuration:
             parser = PropConfigParser()
             self._dict = parser.parse(res)
 
-    def get(self, key, default=None, convertType=str):
+    def getv(self, key, default=None, convertType=str):
         if self._dict.has_key(key):
             return convertType(self._subVar(self._dict[key]))
         else:
             return default
 
     def getStrings(self, key, default=[]):
-        listStr = self.get(key, "")
+        listStr = self.getv(key, "")
         if listStr == None:
             return default
         strList = re.split('\s*,\s*', listStr)
@@ -47,7 +47,7 @@ class Configuration:
         return strList
 
     def getIntRange(self, key, default=[]):
-        listStr = self.get(key, "")
+        listStr = self.getv(key, "")
         if listStr == None:
             return default
         strList = re.split('\s*,\s*', listStr)
@@ -68,7 +68,7 @@ class Configuration:
         return sorted(ret)
 
     def getClass(self, key, default=None, path=[]):
-        clsName = self.get(key, None)
+        clsName = self.getv(key, None)
         if clsName == None:
             return default
         try:
@@ -88,7 +88,7 @@ class Configuration:
         val = self._dict[key]
         return re.sub(self.VAR_MATCH, val, var)
 
-    def set(self, key, val):
+    def setv(self, key, val):
         self._dict[key] = str(val)
 
     def write(self, filename):
@@ -98,6 +98,9 @@ class Configuration:
         else:
             writer = PropConfigWriter()
             writer.write(self._dict, fu.normalizeName(filename))
+
+    def iteritems(self):
+        return self._dict.iteritems()
 
 
     def __str__(self):
@@ -190,7 +193,7 @@ class ConfigRunnable(CliRunnable):
             'set' : 'set a property to configuration file',
         }
 
-    def get(self, argv):
+    def getv(self, argv):
         if (len(argv) != 2):
             print
             print "config get <xml file> <name0;name1;...>"
@@ -198,9 +201,9 @@ class ConfigRunnable(CliRunnable):
         conf = Configuration()
         conf.addResources(argv[0])
         for key in argv[1].split(';'):
-            print key, conf.get(key.strip())
+            print key, conf.getv(key.strip())
 
-    def set(self, argv):
+    def setv(self, argv):
         if (len(argv) != 2):
             print
             print "config set <xml file> <name0,value0;...>"
@@ -211,20 +214,20 @@ class ConfigRunnable(CliRunnable):
             key, value = keyvalue.split(',')
             key = key.strip()
             value = value.strip()
-            conf.set(key, value)
+            conf.setv(key, value)
         conf.write(argv[0])
 
 def main(infile, outfile):
     conf = Configuration()
     conf.addResources(infile)
-    conf.set('tmp.dir', '/tmp')
-    conf.set('local.dir', '${tmp.dir}/local')
-    conf.set('num.modification', 3)
+    conf.setv('tmp.dir', '/tmp')
+    conf.setv('local.dir', '${tmp.dir}/local')
+    conf.setv('num.modification', 3)
     print conf
-    print conf.get('local.dir')
-    print conf.get('num.modification', convertType=int)
-    conf.set('str.list', '/data, /data/input , ${tmp.dir}, /data/soclj')
-    conf.set('int.list', '1, 3, 5 , 4:8, 6:2:10')
+    print conf.getv('local.dir')
+    print conf.getv('num.modification', convertType=int)
+    conf.setv('str.list', '/data, /data/input , ${tmp.dir}, /data/soclj')
+    conf.setv('int.list', '1, 3, 5 , 4:8, 6:2:10')
     conf.write(outfile)
     print conf.getStrings('str.list')
     print conf.getIntRange('int.list')

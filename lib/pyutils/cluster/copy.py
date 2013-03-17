@@ -16,7 +16,7 @@ from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.config import Configuration
 from pyutils.common.parser import CustomArgsParser
 from pyutils.common.parser import Parser
-from pyutils.cluster.ssh import SSHOption
+from pyutils.cluster.ssh import SSHOptions
 
 FILTER_PATTERN_RULE_KEY = "filter.pattern.rule"
 GATHER_PATTERN_RULE_KEY = "gather.pattern.rule"
@@ -108,13 +108,14 @@ class CopyRunnable(CliRunnable):
                 end = len(allSlaves)
             else:
                 end = int(rangebound[1]) + 1
-        sshoptions = SSHOption(conf=conf)
+        sshoptions = SSHOptions()
         for i in range(start, end):
             #strip the last slash of src if any, so that do not mess up the
             #destination directory.
+            slave = allSlaves[i]
             command = 'rsync -r -e "ssh%s" %s %s@%s:%s %s' %(
-                sshoptions, filterString, 
-                user, allSlaves[i], src.rstrip('/'), dst)
+                sshoptions.getOpt(slave), filterString, 
+                user, slave, src.rstrip('/'), dst)
             print command
             subprocess.call(shlex.split(command))
             #apply the gather rule
@@ -150,9 +151,10 @@ class CopyRunnable(CliRunnable):
                 end = len(allSlaves)
             else:
                 end = int(rangebound[1] + 1)
-        sshoptions = SSHOption(conf=conf)
+        sshoptions = SSHOptions()
         for i in range(start, end):
+            slave = allSlaves[i]
             command = 'rsync -r -e "ssh%s" %s %s %s@%s:%s' %(
-                sshoptions, filterString, src, user, allSlaves[i], dst)
+                sshoptions.getOpt(slave), filterString, src, user, slave, dst)
             print command
             subprocess.call(shlex.split(command))

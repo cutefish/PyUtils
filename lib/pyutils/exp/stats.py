@@ -24,7 +24,7 @@ class BasicStatsReduer(Reducer):
     INVALID_VALUE_CORRECTION_KEY = "stats.basic.reducer.correction"
     DEFAULT_INVALID_VALUE_CORRECTION = 0
     def __init__(self, conf):
-        self.correction = conf.get(self.INVALID_VALUE_CORRECTION_KEY,
+        self.correction = conf.getv(self.INVALID_VALUE_CORRECTION_KEY,
                                    self.DEFAULT_INVALID_VALUE_CORRECTION,
                                    float)
 
@@ -82,11 +82,11 @@ class StatsRunnalbe(CliRunnable):
             pathPattern = argv[2]
         path = fu.normalizeName(inputPath)
         conf = Configuration()
-        conf.set(tp.INPUT_DIR_KEY, path)
-        conf.set(tp.INPUT_FILTER_PATTERN_KEY, pathPattern)
-        conf.set(tp.REDUCER_CLASS_KEY, "pyutils.exp.stats.BasicStatsReduer")
-        conf.set(KeyValueEmitter.KEYVALUE_PARSE_PATTERN_KEY, pattern)
-        conf.set(tp.OUTPUT_CLASS_KEY, "pyutils.exp.txtproc.SysStdoutWriter")
+        conf.setv(tp.INPUT_DIR_KEY, path)
+        conf.setv(tp.INPUT_FILTER_PATTERN_KEY, pathPattern)
+        conf.setv(tp.REDUCER_CLASS_KEY, "pyutils.exp.stats.BasicStatsReduer")
+        conf.setv(KeyValueEmitter.KEYVALUE_PARSE_PATTERN_KEY, pattern)
+        conf.setv(tp.OUTPUT_CLASS_KEY, "pyutils.exp.txtproc.SysStdoutWriter")
         proc = tp.TxtProc(conf)
         print proc
         proc.run()
