@@ -1,5 +1,5 @@
 """
-exp.record
+common.record
 
 Processing text as records.
 
@@ -33,7 +33,7 @@ class RecordReader(object):
         """
         isInRecord = False
         while True:
-            line = fd.nextline()
+            line = self.fd.readline()
             #no line to read
             if line == '':
                 return False
@@ -53,4 +53,4 @@ class RecordReader(object):
                     return True
 
     def getLines(self):
-        return list(self.recordlines)
+        return self.recordlines

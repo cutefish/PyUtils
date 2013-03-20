@@ -30,16 +30,22 @@ def listToFile(fileName, ls):
         f.write(str(l) + '\n')
     f.close()
 
-def listFiles(rootDir, topdown=True, onerror=None, followlinks=False):
+def listFiles(rootDir, topdown=True, onerror=None, 
+              followlinks=False, filterstring=None):
     fileList = []
     sizeList = []
+    if filterstring == None:
+        filterRe = re.compile('.*')
+    else:
+        filterRe = re.compile(filterstring)
     for root, subFolders, files in os.walk(
         rootDir, topdown, onerror, followlinks):
         for f in files:
             try:
                 f = os.path.abspath(os.path.join(root, f))
-                fileList.append(f)
-                sizeList.append(os.path.getsize(f))
+                if filterRe.search(f):
+                    fileList.append(f)
+                    sizeList.append(os.path.getsize(f))
             except Exception as e:
                 if (ignoreError):
                     continue
@@ -47,13 +53,19 @@ def listFiles(rootDir, topdown=True, onerror=None, followlinks=False):
                     raise e
     return fileList, sizeList
 
-def iterFiles(rootDir, topdown=True, onerror=None, followlinks=False):
+def iterFiles(rootDir, topdown=True, onerror=None, 
+              followlinks=False, filterstring=None):
+    if filterstring == None:
+        filterRe = re.compile('.*')
+    else:
+        filterRe = re.compile(filterstring)
     for root, subFolders, files in os.walk(
         rootDir, topdown, onerror, followlinks):
         for f in files:
             try:
                 f = os.path.abspath(os.path.join(root, f))
-                yield f, os.path.getsize(f)
+                if filterRe.search(f):
+                    yield f, os.path.getsize(f)
             except Exception as e:
                 if (ignoreError):
                     continue

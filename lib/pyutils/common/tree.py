@@ -64,6 +64,8 @@ class PropertyTree(object):
         self.validRe = re.compile('^(\%s?%s+)+$'%(self.sep, self.charRe))
 
     def normalizeKey(self, key):
+        #remove repeated '.'
+        re.sub('(\.\.)+', '.', key)
         if not self.validRe.match(key):
             raise KeyError("Bad key: " + key)
         if not key.startswith(self.sep):
@@ -180,12 +182,12 @@ class PropertyTree(object):
     def match(self, pattern):
         """ Search for all leaf nodes matching the wildcard pattern."""
         #check validity of the pattern
-        lvlp = '[a-zA-Z0-9-_]+'
+        lvlRe = '%s+' %self.charRe
         sep = self.sep
         # normalize: remove repeated * and check validity
         pattern = re.sub('(\*\.)+','*.', pattern)
         legal = re.compile('^\%s?((\*\%s)|(%s\%s))*(\*|%s)$' %(
-            sep, sep, lvlp, sep, lvlp))
+            sep, sep, lvlRe, sep, lvlRe))
         if not legal.match(pattern):
             raise KeyError("Bad pattern: " + pattern)
         if not pattern.startswith(self.sep):
@@ -246,6 +248,37 @@ class PropertyTree(object):
                         (next, fullKey +self.sep + key, index))
         return leaves
 
+    def prefex(self, prefix):
+        """ Prefix the tree. """
+        prefix = self.normalizeKey(prefix)
+        children = []
+        for child in self.root.children:
+            children.append(child)
+        self.root.children = []
+        leaf = self.add(prefix, None)
+        for child in children:
+            leaf.children.append(child)
+
+    def include(self, ptree):
+        """ Include another ptree. 
+
+        Common absolute keys will be merged onto the same path.
+
+        """
+        queue = []
+        queue.append((self.root, ptree.root))
+        while (len(queue) > 0):
+            this, other = queue.pop()
+            for otherChild in other.children:
+                common = False
+                for thisChild in this.children:
+                    if thisChild.key == otherChild.key:
+                        queue.append((thisChild, otherChild))
+                        common = True
+                        break
+                if not common:
+                    this.children.append(otherChild)
+
     def getv(self, key):
         if not '*' in key:
             try:
@@ -263,13 +296,22 @@ class PropertyTree(object):
         self.add(key, val, True)
 
     @staticmethod
-    def dump(tree, fd):
+    def dump(tree, f):
+        fd = open(f, 'w')
         pickle.dump(tree, fd)
 
     @staticmethod
-    def load(fd):
+    def load(f):
+        fd = open(f, 'r')
         tree = pickle.load(fd)
         return tree
+
+    @staticmethod
+    def merge(ptrees, sep='.'):
+        newtree = PropertyTree(sep)
+        for ptree in ptrees:
+            newtree.include(ptree)
+        return newtree
 
     def __str__(self):
         """Retrun all the keys and values."""
