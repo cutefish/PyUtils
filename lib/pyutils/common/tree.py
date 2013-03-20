@@ -32,6 +32,10 @@ class TreeNode(object):
     def children(self):
         return self._children
 
+    @children.setter
+    def children(self, other):
+        self._children = other
+
     def hasChild(self):
         return len(self._children) != 0
 
@@ -60,19 +64,20 @@ class PropertyTree(object):
     def __init__(self, sep="."):
         self.root = TreeNode("", None)
         self.sep = sep
-        self.charRe = '[a-zA-Z0-9-_]'
-        self.validRe = re.compile('^(\%s?%s+)+$'%(self.sep, self.charRe))
+        self.innerkeyRe = '[a-zA-Z0-9-_]+'
+        self.validRe = re.compile('^(\%s?%s)+$'%(self.sep, self.innerkeyRe))
 
     def normalizeKey(self, key):
         #remove repeated '.'
-        re.sub('(\.\.)+', '.', key)
+        key = re.sub('(\.\.)+', '.', key)
         if not self.validRe.match(key):
             raise KeyError("Bad key: " + key)
-        if not key.startswith(self.sep):
-            return self.sep + key
+        return key.strip(self.sep)
 
     def splitKey(self, key):
         """ Split key into parent and child. """
+        if not self.sep in key:
+            return "", key
         lastSepIndex = key.rindex(self.sep)
         parent = key[0:lastSepIndex]
         child = key[lastSepIndex + 1:]
@@ -93,15 +98,13 @@ class PropertyTree(object):
         rest2 = re.sub(commonKey, '', key2).lstrip(self.sep)
         return commonKey, rest1, rest2
 
-    def _dive(self, key, node=None, create=False):
-        levelKeys = key.split(self.sep)
+    def _dive(self, key, node, create=False):
+        if key == "":
+            return node
+        levelKeys = key.strip(self.sep).split(self.sep)
         curr = node
-        if curr == None:
-            curr = self.root
         currKey = ""
         for i in range(len(levelKeys)):
-            if i == 0:
-                continue
             next = None
             currKey = levelKeys[i]
             for child in curr.children:
@@ -124,7 +127,7 @@ class PropertyTree(object):
 
         """
         key = self.normalizeKey(key)
-        return self._dive(key)
+        return self._dive(key, self.root)
 
     def add(self, key, val, overwrite=True):
         """ Add the TreeNode matching the key.  
@@ -135,7 +138,7 @@ class PropertyTree(object):
         """
         key = self.normalizeKey(key)
         parentKey, childKey = self.splitKey(key)
-        parent = self._dive(parentKey, create=True)
+        parent = self._dive(parentKey, self.root, create=True)
         curr = None
         for child in parent.children:
             if child.key == childKey:
@@ -158,7 +161,7 @@ class PropertyTree(object):
         key = self.normalizeKey(key)
         parentKey, childKey = self.splitKey(key)
         try:
-            parent = self._dive(parentKey, create=False)
+            parent = self._dive(parentKey, self.root, create=False)
         except KeyError:
             return False
         for child in parent.children:
@@ -174,59 +177,143 @@ class PropertyTree(object):
         while len(queue) != 0:
             curr, fullKey = queue.pop()
             if curr.key == key:
-                ret.append((curr, fullKey.lstrip(self.sep)))
+                ret.append((curr, fullKey.strip(self.sep)))
             for child in curr.children:
                 queue.append((child, fullKey + self.sep + child.key))
         return ret
 
+    def _findLeaves(self, node):
+        queue = []
+        queue.append((node, ""))
+        ret = []
+        while len(queue) != 0:
+            curr, fullKey = queue.pop()
+            if not curr.hasChild():
+                ret.append((curr, fullKey.strip(self.sep)))
+            for child in curr.children:
+                queue.append((child, fullKey + self.sep + child.key))
+        return ret
+
+    def _extractGroupKey(self, pattern, fullKey):
+        if not '[' in pattern:
+            return fullKey
+        psplit = pattern.split(self.sep)
+        ksplit = fullKey.split(self.sep)
+        ppos = 0
+        kpos = 0
+        groupKeys = []
+        while ppos < len(psplit):
+            key = psplit[ppos]
+            if key == '[':
+                groupKeys.append(ksplit[kpos])
+            elif key == '*':
+                pass
+            elif key == '**':
+                ppos += 1
+                kpos += 1
+                if (ppos == len(psplit)):
+                    break
+                nextKey = psplit[ppos]
+                while kpos < len(ksplit):
+                    if ksplit[kpos] == nextKey:
+                        break
+                    else:
+                        kpos += 1
+            else:
+                if psplit[ppos] != ksplit[kpos]:
+                    raise KeyError("key not match pattern." + 
+                                   " key=" + fullKey +
+                                   " pattern=" + pattern)
+            ppos += 1
+            kpos += 1
+        return tuple(groupKeys)
+
     def match(self, pattern):
-        """ Search for all leaf nodes matching the wildcard pattern."""
-        #check validity of the pattern
-        lvlRe = '%s+' %self.charRe
-        sep = self.sep
-        # normalize: remove repeated * and check validity
-        pattern = re.sub('(\*\.)+','*.', pattern)
-        legal = re.compile('^\%s?((\*\%s)|(%s\%s))*(\*|%s)$' %(
-            sep, sep, lvlRe, sep, lvlRe))
-        if not legal.match(pattern):
-            raise KeyError("Bad pattern: " + pattern)
-        if not pattern.startswith(self.sep):
-            pattern = self.sep + pattern
+        """ Search for all nodes matching the wildcard pattern.
+        
+        Pattern is a combination of inner keys and special charactors, for
+        example, spam.egg.*.[.**
+
+        Special charactor:
+            *   --  wild card for matching one inner key
+            **  --  wild card for aggresively matching all keys
+            [   --  group using this inner key
+
+        """
+        #normalize: remove repeated sep, add leading sep and remove repeated **
+        pattern = re.sub('(\*\*\.)+','**.', pattern)
+        pattern = re.sub('(\.\.)+', '.', pattern)
+        pattern = pattern.strip(self.sep)
         #group keys
         levelKeys = pattern.split(self.sep)
         keys = []
         prevstop = 0
         for i in range(len(levelKeys)):
-            if (levelKeys[i] == '*'):
+            validRe = re.compile('^(\*{1,2}|\[|%s)$' %self.innerkeyRe)
+            if not validRe.match(levelKeys[i]):
+                raise KeyError("Bad pattern: " + pattern + 
+                               " at innterkey:" + levelKeys[i])
+            if levelKeys[i] == '**' and i < len(levelKeys) - 1:
+                if levelKeys[i + 1] == '*' or levelKeys[i + 1] == '[':
+                    raise KeyError(
+                        "Bad key: " + key + "[ and * cannot follow **")
+            if levelKeys[i] == '*' or levelKeys[i] == '[':
                 prev = self.sep.join(levelKeys[prevstop:i])
-                keys.append(prev)
-                keys.append('*')
+                if prev != "":
+                    keys.append(prev)
+                keys.append(levelKeys[i])
                 prevstop = i + 1
-            if i == len(levelKeys) - 1 and prevstop <= i:
+            if levelKeys[i] == '**':
                 prev = self.sep.join(levelKeys[prevstop:i])
-                keys.append(prev)
+                if prev != "":
+                    keys.append(prev)
+                keys.append(levelKeys[i])
+                if i < len(levelKeys) - 1:
+                    keys.append(levelKeys[i + 1])
+                prevstop = i + 2
+            if i == len(levelKeys) - 1:
+                prev = self.sep.join(levelKeys[prevstop : i + 1])
+                if prev != "":
+                    keys.append(prev)
         #foreach key, if its a wildcard, then search, otherwise, dive
         queue = []
-        leaves = []
-        try:
-            first = self._dive(keys[0], create=False)
-        except KeyError:
-            return leaves
-        queue.append((first, keys[0], 1))
+        nodes = {}
+        queue.append((self.root, "", 0))
         while len(queue) != 0:
             curr, fullKey, index = queue.pop()
+            fullKey = fullKey.strip(self.sep)
             if index == len(keys):
-                #if we exhaust the matching pattern, any descendants match
-                if not curr.hasChild():
-                    leaves.append((curr, fullKey))
-                    continue
-                for next in curr.children:
-                    fullKey = fullKey + self.sep + next.key
-                    queue.append((next, fullKey, index))
+                #if we exhaust the matching pattern, put into nodes
+                groupKey = self._extractGroupKey(pattern, fullKey)
+                if not nodes.has_key(groupKey):
+                    nodes[groupKey] = []
+                nodes[groupKey].append((fullKey, curr))
                 continue
             nextKey = keys[index]
-            if (nextKey != '*'):
-                #nextKey is not *, directly find the next node
+            if (nextKey == '*' or nextKey == '['):
+                #a wild card place holder, queue all children
+                for child in curr.children:
+                    queue.append(
+                        (child, fullKey + self.sep + child.key, index + 1))
+            elif (nextKey == '**'):
+                #nextKey is **, find the descendant parents matching the first
+                index = index + 1
+                if index == len(keys):
+                    #if we exhaust the matching pattern, put all leaf into nodes
+                    leaves = self._findLeaves(curr)
+                    for leaf, leafKey in leaves:
+                        leafKey = fullKey + self.sep + leafKey
+                        groupKey = self._extractGroupKey(pattern, leafKey)
+                        if not nodes.has_key(groupKey):
+                            nodes[groupKey] = []
+                        nodes[groupKey].append((leafKey, leaf))
+                    continue
+                nextKey = keys[index]
+                for next, key in self._dfsKey(nextKey, curr):
+                    queue.append(
+                        (next, fullKey +self.sep + key, index + 1))
+            else:
+                #regular key, directly find the next node
                 try:
                     next = self._dive(nextKey, curr, create=False)
                     fullKey = fullKey + self.sep + nextKey
@@ -235,20 +322,9 @@ class PropertyTree(object):
                 except KeyError:
                     #key not found, this path is dead
                     pass
-            else:
-                #nextKey is *, find the descendant parents matching the first
-                index = index + 1
-                if index == len(keys):
-                    queue.append((curr, fullKey, index))
-                    continue
-                firstKey = keys[index].split(self.sep)[0]
-                for next, key in self._dfsKey(firstKey, curr):
-                    key = key.rstrip(self.sep + firstKey)
-                    queue.append(
-                        (next, fullKey +self.sep + key, index))
-        return leaves
+        return nodes
 
-    def prefex(self, prefix):
+    def prefix(self, prefix):
         """ Prefix the tree. """
         prefix = self.normalizeKey(prefix)
         children = []
@@ -280,7 +356,7 @@ class PropertyTree(object):
                     this.children.append(otherChild)
 
     def getv(self, key):
-        if not '*' in key:
+        if not ('*' in key or '[' in key):
             try:
                 node = self.find(key)
                 return node.val
@@ -288,8 +364,12 @@ class PropertyTree(object):
                 return None
         else:
             keyvals = {}
-            for node, key in self.match(key):
-                keyvals[key.lstrip(self.sep)] = node.val
+            for key, nodes in self.match(key).iteritems():
+                vals = []
+                for elem in nodes:
+                    fullKey, node = elem
+                    vals.append(node.val)
+                keyvals[key] = vals
             return keyvals
 
     def setv(self, key, val):
@@ -321,7 +401,7 @@ class PropertyTree(object):
         while len(queue) != 0:
             curr, fullKey = queue.pop()
             if not curr.hasChild():
-                ret.append(fullKey + ": " + str(curr.val))
+                ret.append(fullKey.strip(self.sep) + ": " + str(curr.val))
                 continue
             for child in curr.children:
                 queue.append((child, fullKey + self.sep + child.key))
@@ -356,21 +436,20 @@ def testPropertyTree():
     print pt.getv("plan0.iter0.job1.num.data.locals")
     pt.setv("plan.summary", "A plan for test")
     print pt
-    print pt.getv("plan0.iter0.job0.mapper.0.*")
+    print pt.getv("plan0.iter0.job0.mapper.0.**")
     print pt.getv("plan0.iter0.job0.mapper.*.exec.time")
     print pt.getv("*.mapper.*.read.type")
+    print pt.getv("**.mapper.*.read.type")
     print
-    fd = open('/tmp/testpt', 'w')
-    PropertyTree.dump(pt, fd)
-    fd.close()
-    fd = open('/tmp/testpt', 'r')
-    pt = PropertyTree.load(fd)
-    fd.close()
+    PropertyTree.dump(pt, '/tmp/testpt')
+    pt = PropertyTree.load('/tmp/testpt')
     print pt
-    print pt.getv("plan0.iter0.job0.mapper.0.*")
+    print pt.getv("plan0.iter0.job0.mapper.0.**")
     print pt.getv("plan0.iter0.job0.mapper.*.exec.time")
-    print pt.getv("*.mapper.*.read.type")
-    fd.close()
+    print pt.getv("**.mapper.*.read.type")
+
+    print pt.getv("*.*.[.mapper.**")
+    print pt.getv("*.*.[.mapper.[.**")
 
 def main():
     testPropertyTree()
