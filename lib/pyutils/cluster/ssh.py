@@ -84,7 +84,7 @@ class SSHOptions:
                 break
         if option == None:
             option = self.conf.getv(SSHOptions.DEFAULT_SSH_KEY)
-        if option == "":
+        if option == "" or option == None:
             return ""
         return " " + option
 
