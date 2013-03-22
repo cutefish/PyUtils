@@ -1,11 +1,15 @@
 """
-tree.py
+ptree.py
 
-Tree Data Structures.
+PropertyTree data structure for experiments
 """
 
 import pickle
 import re
+import sys
+import traceback
+
+from pyutils.common.clirunnable import CliRunnable
 
 class TreeNode(object):
     """ Property tree node. """
@@ -450,6 +454,56 @@ def testPropertyTree():
 
     print pt.getv("*.*.[.mapper.**")
     print pt.getv("*.*.[.mapper.[.**")
+
+class PTreeRunnable(CliRunnable):
+    def __init__(self):
+        self.availableCommand = {
+            'load' : 'show a property tree dump file',
+            'interact' : 'open a interactive command line',
+        }
+
+    def load(self, argv):
+        if (len(argv) != 1):
+            print
+            print "ptree load <ptree file dump>"
+            sys.exit(-1)
+        ptree = PropertyTree.load(argv[0])
+        print ptree
+
+    def interact(self, argv):
+        print 'PropertyTree Interactive Command Line'
+        print 'Seperator: .'
+        print 'Commands:'
+        print '  add    -- add a key value pair'
+        print '  remove -- remove a key'
+        print '  get    -- get the value of a pattern'
+        print '  print  -- print the current tree'
+        print '  dump   -- dump the tree to a file'
+        print '  load   -- load a tree from file'
+        print '  exit   -- exit'
+        ptree = PropertyTree()
+        while(True):
+            next = raw_input('>>')
+            try:
+                args = next.split(' ')
+                if args[0] == 'add':
+                    ptree.add(args[1].strip(), eval(args[2]))
+                elif args[0] == 'remove':
+                    ptree.remove(args[1].strip())
+                elif args[0] == 'get':
+                    print ptree.getv(args[1].strip())
+                elif args[0] == 'print':
+                    print ptree
+                elif args[0] == 'dump':
+                    PropertyTree.dump(ptree, args[1].strip())
+                elif args[0] == 'load':
+                    ptree = PropertyTree.load(args[1].strip())
+                elif args[0] == 'exit':
+                    break
+                else:
+                    print 'unknown command'
+            except:
+                traceback.print_exc(file=sys.stdout)
 
 def main():
     testPropertyTree()

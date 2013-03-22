@@ -189,8 +189,8 @@ class PropConfigWriter:
 class ConfigRunnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
-            'get' : 'get a property to configuration file',
-            'set' : 'set a property to configuration file',
+            'getv' : 'get a property to configuration file',
+            'setv' : 'set a property to configuration file',
         }
 
     def getv(self, argv):

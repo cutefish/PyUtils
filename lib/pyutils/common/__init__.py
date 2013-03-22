@@ -2,6 +2,7 @@
 
 modules = {
     "config" : "modify configuration",
-    "fileutils" : "file utils"
+    "fileutils" : "file utils",
+    "ptree" : "property tree"
 }
 
