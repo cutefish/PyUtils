@@ -359,7 +359,7 @@ class PropertyTree(object):
                 if not common:
                     this.children.append(otherChild)
 
-    def getv(self, key):
+    def getv(self, key, keepKeys=False):
         if not ('*' in key or '[' in key):
             try:
                 node = self.find(key)
@@ -370,10 +370,16 @@ class PropertyTree(object):
             keyvals = {}
             for key, nodes in self.match(key).iteritems():
                 vals = []
+                keys = []
                 for elem in nodes:
                     fullKey, node = elem
                     vals.append(node.val)
-                keyvals[key] = vals
+                    if keepKeys:
+                        keys.append(fullKey)
+                if keepKeys:
+                    keyvals[key] = (vals, keys)
+                else:
+                    keyvals[key] = vals
             return keyvals
 
     def setv(self, key, val):
