@@ -1,8 +1,8 @@
 """
 
-hadoop.main
+ec2.py
 
-Main entry of cluster package
+Amazon EC2 Utilities.
 
 """
 
@@ -31,7 +31,7 @@ class EC2Runnable(CliRunnable):
     #startCluster
     def startCluster(self, argv):
         if len(argv) != 0:
-            print "hadoop startCluster"
+            print "ec2 startCluster"
             sys.exit(-1)
         regions = boto.ec2.regions()
         regionInfo = '\n'.join(str(region).split(':')[1] for region in regions)
@@ -81,7 +81,7 @@ class EC2Runnable(CliRunnable):
     #get running ip
     def getRunningIp(self, argv):
         if len(argv) < 1:
-            print "hadoop getRunningIp <regionName> [outdir]"
+            print "ec2 getRunningIp <regionName> [outdir]"
             sys.exit(-1)
         regionName = argv[0]
         try:
@@ -120,7 +120,7 @@ class EC2Runnable(CliRunnable):
     #start instances
     def startInstances(self, argv):
         if len(argv) != 1:
-            print "hadoop startInstances <regionName>"
+            print "ec2 startInstances <regionName>"
             sys.exit(-1)
         regionName = argv[0]
         region = boto.ec2.get_region(regionName)
@@ -134,7 +134,7 @@ class EC2Runnable(CliRunnable):
     #stop instances
     def stopInstances(self, argv):
         if len(argv) != 1:
-            print "hadoop stopInstances <regionName>"
+            print "ec2 stopInstances <regionName>"
             sys.exit(-1)
         regionName = argv[0]
         region = boto.ec2.get_region(regionName)
@@ -147,7 +147,7 @@ class EC2Runnable(CliRunnable):
     #terminate instances
     def termInstances(self, argv):
         if len(argv) != 1:
-            print "hadoop termInstances <regionName>"
+            print "ec2 termInstances <regionName>"
             sys.exit(-1)
         regionName = argv[0]
         region = boto.ec2.get_region(regionName)
