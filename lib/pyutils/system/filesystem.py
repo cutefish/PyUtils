@@ -60,7 +60,7 @@ class Volume(object):
 
 class Volumes(object):
     def __init__(self):
-        self.volumes = {}
+        self.volumes = []
 
     def df(self):
         p = subprocess.Popen(["df"],
@@ -72,11 +72,11 @@ class Volumes(object):
         for line in results[1:]:
             fs, nkblocks, used, available, use, mounton = line.split()
             volume = Volume(fs, nkblocks, used, available, use, mounton)
-            self.volumes[mounton] = volume
+            self.volumes.append(volume)
 
     def __iter__(self):
-        for k, v in self.volumes.iteritems():
-            yield k, v
+        for v in self.volumes:
+            yield v
 
     def __str__(self):
         """Pretty print the volumes."""
@@ -85,11 +85,11 @@ class Volumes(object):
         usedWidth = 15
         availableWidth = 15
         useWidth = 5
-        for v in self.volumes.values():
+        for v in self.volumes:
             if len(v.fs) > fsWidth:
                 fsWidth = len(v.fs)
         string = ''
-        for v in self.volumes.values():
+        for v in self.volumes:
             fs, nkblocks, used, available, use, mounton = v
             string += fs.ljust(fsWidth)
             string += str(nkblocks).rjust(nkblocksWidth)
