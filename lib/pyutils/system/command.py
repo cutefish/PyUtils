@@ -5,11 +5,15 @@ System command utitlies
 """
 import os
 import getpass
-import pexpect
 import shlex
 import subprocess
 import sys
 import time
+
+try:
+    import pexpect
+except:
+    pass
 
 from pyutils.common.clirunnable import CliRunnable
 
