@@ -6,8 +6,12 @@ System command utitlies
 import os
 import getpass
 import pexpect
+import shlex
 import subprocess
 import sys
+import time
+
+from pyutils.common.clirunnable import CliRunnable
 
 class Sudoer(object):
     """
@@ -28,6 +32,42 @@ class Sudoer(object):
         index = child.expect(['.*(?i)password.*', pexpect.EOF])
         if index == 0:
             raise ValueError('Wrong password')
+
+class PeriodicalExecutor(object):
+    """
+    Periodically execute a command.
+    """
+    def __init__(self, command, interval=60):
+        self._command = command
+        self._interval = interval
+
+    def run(self):
+        try:
+            while(True):
+                subprocess.call(shlex.split(self._command), 
+                                stdout = sys.stdout, stderr = sys.stderr)
+                time.sleep(self._interval)
+        except KeyboardInterrupt:
+            pass
+
+class CommandRunnable(CliRunnable):
+    def __init__(self):
+        self.availableCommand = {
+            'periodexec' : 'run command periodically',
+        }
+
+    def periodexec(self, argv):
+        if (len(argv) < 1):
+            print
+            print 'command periodexec <command> [interval]'
+            print
+            sys.exit(-1)
+        interval = 60
+        command = argv[0]
+        if len(argv) > 1:
+            interval = int(argv[1])
+        executor = PeriodicalExecutor(command, interval)
+        executor.run()
 
 def main():
     sudoer = Sudoer()

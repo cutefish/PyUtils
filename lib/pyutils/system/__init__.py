@@ -1,0 +1,5 @@
+
+modules = {
+    "command" : "system commands",
+}
+
