@@ -83,8 +83,9 @@ class CustomArgsParser():
         quotes are of the same arg or option. Only specified customized options
         are recognized and extracted. Other args are kept intact in order.
     """
-    def __init__(self, optKeys, defaults={}):
+    def __init__(self, optKeys=[], optFlags=[], defaults={}):
         self.optKeys = optKeys
+        self.optFlags = optFlags
         self.options = defaults
         self.otherArgs = []
 
@@ -93,6 +94,8 @@ class CustomArgsParser():
             arg = args.pop(0)
             if arg in self.optKeys:
                 self.options[arg] = args.pop(0)
+            if arg in self.optFlags:
+                self.options[arg] = True
             else:
                 self.otherArgs.append(arg)
 
@@ -102,6 +105,8 @@ class CustomArgsParser():
     def getOption(self, key):
         if self.options.has_key(key):
             return self.options[key]
+        elif key in self.optFlags:
+            return False
         else:
             return None
 

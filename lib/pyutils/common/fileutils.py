@@ -11,6 +11,7 @@ import shutil
 import sys
 
 from pyutils.common.clirunnable import CliRunnable
+from pyutils.common.parser import CustomArgsParser
 
 def normalizeName(fileName):
     return os.path.abspath(os.path.expanduser(fileName))
@@ -127,19 +128,49 @@ def catFiles(rootDir, filterString='.*', out=sys.stdout):
             out.write('\n')
             out.write('#'*36 + '  END  ' + '#'*37 + '\n');
             fd.close()
+            
+def renameFiles(rootDir, pattern, repl, verbose):
+    for old in os.listdir(rootDir):
+        if re.search(pattern, old):
+            new = re.sub(pattern, repl, old)
+            src = '%s/%s' %(rootDir, old)
+            dst = '%s/%s' %(rootDir, new)
+            if verbose:
+                print 'Moving %s to %s' %(src, dst)
+            os.rename(src, dst)
 
 class FURunnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'catfiles' : 'cat all files in a root directory',
+            'rename': 'rename files(accepting regex)',
         }
 
     def catfiles(self, argv):
-        if (len(argv) == 1):
+        if len(argv) == 1:
             catFiles(normalizeName(argv[0]))
-        elif (len(argv) == 2):
+        elif len(argv) == 2:
             catFiles(normalizeName(argv[0]), argv[1])
         else:
             print
             print "fileutils catfiles <root dir> [filter string]"
             sys.exit(-1)
+
+    def rename(self, argv):
+        if len(argv) < 2:
+            print 
+            print "fileutils rename [-v] <pattern> <repl> [root]"
+            sys.exit(-1)
+        argsparser = CustomArgsParser(optFlags=['-v'])
+        argsparser.parse(argv)
+        verbose = argsparser.getOption('-v')
+        otherArgs = argsparser.getOtherArgs()
+        pattern = otherArgs[0]
+        repl = otherArgs[1]
+        if len(otherArgs) == 3:
+            root = normalizeName(otherArgs[2])
+        else:
+            root = normalizeName(os.curdir)
+        renameFiles(root, pattern, repl, verbose)
+        
+
