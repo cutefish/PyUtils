@@ -3,6 +3,9 @@ plot.line
 
 line utilities.
 """
+import matplotlib.pyplot as plt
+import matplotlib.lines as pltlines
+
 from pyutils.common.iterator import MultiListIterator
 
 LINE_MARKERS =  {
@@ -129,3 +132,77 @@ class LineStyles(object):
                     setattr(curr, key, val)
                     val_idx += 1
         return curr
+
+class Line2D(object):
+    """Wrapper object for the matplotlib.lines.line2D."""
+    XY = "xy"
+    LABEL = "label"
+    MARKER = "marker"
+    MARKERSIZE = "msize"
+    CONN = "conn"
+    WIDTH = "width"
+    COLOR = "color"
+    KEYS = [XY, MARKER, MARKERSIZE, CONN, WIDTH, COLOR]
+    def __init__(self, line, axes, label):
+        self._line = line
+        self._axes = axes
+        self._label = label
+
+    def getLine(self):
+        return self._line
+
+    @property
+    def axes(self):
+        return self._axes
+
+    @property
+    def label(self):
+        return label
+
+    @classmethod
+    def draw(cls, lcfg, parent):
+        """Draw a line on the axes according to configuration. 
+
+        lcfg    -- Line config ptree node. 
+                   The ptree node should have a form of line.0.*
+        parent  -- Parent axes object
+        
+        """
+        axes = parent.getAxes()
+        props = {}
+        line = None
+        label = None
+        idx = int(lcfg.key)
+        for child in lcfg.children:
+            key = child.key
+            val = child.val
+            if key == cls.XY:
+                xvals = []
+                yvals = []
+                for xy in val:
+                    x, y = xy
+                    xvals.append(x)
+                    yvals.append(y)
+                line = axes.plot(xvals, yvals)
+            elif key in cls.KEYS:
+                props[key] = val
+        if line == None:
+            raise ValueError("No xy data found in %s.%s" %(parent, idx))
+        for key, val in props.iteritems():
+            if key == LABEL:
+                label = val
+            if key == MARKER:
+                plt.setp(line, marker=val)
+            elif key == MARKERSIZE:
+                plt.setp(line, markersize=val)
+            elif key == CONN:
+                plt.setp(line, linestyle=val)
+            elif key == WIDTH:
+                plt.setp(line, linewidth=val)
+            elif key == COLOR:
+                plt.setp(line, color=val)
+        newline = Line2D(line, parent, label)
+        parent.addLine(newline)
+        return newline
+            
+

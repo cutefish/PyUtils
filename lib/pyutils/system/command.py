@@ -42,14 +42,15 @@ class PeriodicalExecutor(object):
     Periodically execute a command.
     """
     def __init__(self, command, interval=60):
-        self._command = command
+        self._commands = command.split(';')
         self._interval = interval
 
     def run(self):
         try:
             while(True):
-                subprocess.call(shlex.split(self._command), 
-                                stdout = sys.stdout, stderr = sys.stderr)
+                for command in self._commands:
+                    subprocess.call(shlex.split(command), 
+                                    stdout = sys.stdout, stderr = sys.stderr)
                 time.sleep(self._interval)
         except KeyboardInterrupt:
             pass
