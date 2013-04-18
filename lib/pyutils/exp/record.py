@@ -31,6 +31,9 @@ class RecordReader(object):
         self.recordlines = None
         self.buf = []
         self.eof = False
+        self.lineno = 0
+        self.rstart = 0
+        self.rend = 0
 
     def next(self):
         """
@@ -45,6 +48,7 @@ class RecordReader(object):
                 line = self.buf.pop(0)
             else:
                 line = self.fd.readline()
+                self.lineno += 1
             #no line to read
             if line == '':
                 break
@@ -61,7 +65,9 @@ class RecordReader(object):
                 if isInRecord:
                     if self.context.unknownRecordEnd():
                         self.buf.append(line)
+                        self.rend = self.lineno - 1
                         return True
+                self.rstart = self.lineno
                 isInRecord = True
                 self.recordlines = []
             if isInRecord:
@@ -69,6 +75,7 @@ class RecordReader(object):
                 if self.context.unknownRecordEnd():
                     continue
                 if self.context.isRecordEnd(line):
+                    self.rend = self.lineno
                     return True
         #end of file
         if not self.eof:
@@ -77,12 +84,19 @@ class RecordReader(object):
             if self.recordlines != None and \
                len(self.recordlines) != 0 and \
                self.context.unknownRecordEnd():
+                self.rend = self.lineno
                 return True
         if self.eof:
             return False
 
     def getLines(self):
         return self.recordlines
+
+    def currLineno(self):
+        return self.lineno
+
+    def getRecordLineRange(self):
+        return self.rstart, self.rend
 
 def testRecordReader():
     fd = open('/tmp/testrr', 'w')
@@ -114,6 +128,8 @@ def testRecordReader():
     reader = RecordReader(fd, context)
     while(reader.next()):
         print reader.getLines()
+        print reader.currLineno()
+        print reader.getRecordLineRange()
     fd.close()
     print
     fd = open('/tmp/testrr', 'r')
@@ -121,6 +137,8 @@ def testRecordReader():
     reader = RecordReader(fd, context)
     while(reader.next()):
         print reader.getLines()
+        print reader.currLineno()
+        print reader.getRecordLineRange()
     fd.close()
 
 def main():
