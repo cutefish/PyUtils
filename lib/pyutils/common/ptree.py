@@ -212,20 +212,30 @@ class PropertyTree(object):
                 groupKeys.append(ksplit[kpos])
             elif key == '*':
                 pass
-            elif key == '**':
+            elif key == '**' or key == '[[':
                 ppos += 1
                 kpos += 1
+                extracted = [ksplit[kpos - 1]]
                 if (ppos == len(psplit)):
+                    if key == '[[':
+                        extracted = ksplit[kpos - 1:]
+                        groupkey = self.sep.join(extracted)
+                        groupKeys.append(groupkey)
                     break
                 nextKey = psplit[ppos]
                 while kpos < len(ksplit):
                     if ksplit[kpos] == nextKey:
                         break
                     else:
+                        if key == '[[':
+                            extracted.append(ksplit[kpos])
                         kpos += 1
+                if len(extracted) != 0:
+                    groupkey = self.sep.join(extracted)
+                    groupKeys.append(groupkey)
             else:
                 if psplit[ppos] != ksplit[kpos]:
-                    raise KeyError("key not match pattern." + 
+                    raise KeyError("key not match pattern." +
                                    " key=" + fullKey +
                                    " pattern=" + pattern)
             ppos += 1
@@ -242,6 +252,7 @@ class PropertyTree(object):
             *   --  wild card for matching one inner key
             **  --  wild card for aggresively matching all keys
             [   --  group using this inner key
+            [[  --  group using wild card
 
         """
         #normalize: remove repeated sep, add leading sep and remove repeated **
@@ -253,21 +264,23 @@ class PropertyTree(object):
         keys = []
         prevstop = 0
         for i in range(len(levelKeys)):
-            validRe = re.compile('^(\*{1,2}|\[|%s)$' %self.innerkeyRe)
+            validRe = re.compile('^(\*{1,2}|\[{1,2}|%s)$' %self.innerkeyRe)
             if not validRe.match(levelKeys[i]):
-                raise KeyError("Bad pattern: " + pattern + 
+                raise KeyError("Bad pattern: " + pattern +
                                " at innterkey:" + levelKeys[i])
-            if levelKeys[i] == '**' and i < len(levelKeys) - 1:
+            if (levelKeys[i] == '**' or levelKeys[i] == '[[') \
+               and i < len(levelKeys) - 1:
                 if levelKeys[i + 1] == '*' or levelKeys[i + 1] == '[':
                     raise KeyError(
-                        "Bad key: " + key + "[ and * cannot follow **")
+                        "Bad key: " + key +
+                        "[ and * cannot follow ** or [[")
             if levelKeys[i] == '*' or levelKeys[i] == '[':
                 prev = self.sep.join(levelKeys[prevstop:i])
                 if prev != "":
                     keys.append(prev)
                 keys.append(levelKeys[i])
                 prevstop = i + 1
-            if levelKeys[i] == '**':
+            if levelKeys[i] == '**' or levelKeys[i] == '[[':
                 prev = self.sep.join(levelKeys[prevstop:i])
                 if prev != "":
                     keys.append(prev)
@@ -299,7 +312,7 @@ class PropertyTree(object):
                 for child in curr.children:
                     queue.append(
                         (child, fullKey + self.sep + child.key, index + 1))
-            elif (nextKey == '**'):
+            elif (nextKey == '**' or nextKey == '[['):
                 #nextKey is **, find the descendant parents matching the first
                 index = index + 1
                 if index == len(keys):
@@ -368,18 +381,18 @@ class PropertyTree(object):
                 return None
         else:
             keyvals = {}
-            for key, nodes in self.match(key).iteritems():
-                vals = []
-                keys = []
+            for groupkey, nodes in self.match(key).iteritems():
+                if keepKeys:
+                    vals = {}
+                else:
+                    vals = []
                 for elem in nodes:
                     fullKey, node = elem
-                    vals.append(node.val)
                     if keepKeys:
-                        keys.append(fullKey)
-                if keepKeys:
-                    keyvals[key] = (vals, keys)
-                else:
-                    keyvals[key] = vals
+                        vals[fullKey] = node.val
+                    else:
+                        vals.append(node.val)
+                keyvals[groupkey] = vals
             return keyvals
 
     def setv(self, key, val):
@@ -458,8 +471,12 @@ def testPropertyTree():
     print pt.getv("plan0.iter0.job0.mapper.*.exec.time")
     print pt.getv("**.mapper.*.read.type")
 
-    print pt.getv("*.*.[.mapper.**")
-    print pt.getv("*.*.[.mapper.[.**")
+    print pt.getv("*.*.[.mapper.**", True)
+    print pt.getv("*.*.[.mapper.[.**", True)
+
+    print pt.getv("*.*.[.mapper.[[")
+    print pt.getv("*.*.[.mapper.[.[[")
+    print pt.getv("[[.mapper.**")
 
 class PTreeRunnable(CliRunnable):
     def __init__(self):
@@ -497,7 +514,10 @@ class PTreeRunnable(CliRunnable):
                 elif args[0] == 'remove':
                     ptree.remove(args[1].strip())
                 elif args[0] == 'get':
-                    print ptree.getv(args[1].strip())
+                    if len(args) == 2:
+                        print ptree.getv(args[1].strip())
+                    else:
+                        print ptree.getv(args[1].strip(), True)
                 elif args[0] == 'print':
                     print ptree
                 elif args[0] == 'dump':
