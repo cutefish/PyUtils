@@ -5,6 +5,9 @@ A object that has a parse() function
 """
 import re
 import shlex
+import sys
+
+from pyutils.common.clirunnable import CliRunnable
 
 class Parser:
     def parse(self, obj):
@@ -30,8 +33,8 @@ class KeyValParser(Parser):
         '%alpha' : ('[a-zA-Z]+', str, 'alphabet'),
         '%lc' : ('[a-z]+', str, 'lower case'),
         '%uc' : ('[A-Z]+', str, 'upper case'),
-        '%name' : ('[a-zA-Z_-]+', str, 'regular name'),
-        '%path' : ('[a-zA-Z_-/]+', str, 'path name'),
+        '%name' : ('[0-9a-zA-Z_-]+', str, 'regular name'),
+        '%path' : ('[0-9a-zA-Z_-/]+', str, 'path name'),
         '%int' : ('[-+0-9]+', int, 'decimal'),
         '%long' : ('[-+0-9]+', long, 'decimal'),
         '%dec' : ('[-+0-9]+', int, 'decimal'),
@@ -112,4 +115,18 @@ class CustomArgsParser():
 
     def getOptions(self):
         return self.options
+
+class ParserRunnable(CliRunnable):
+    def __init__(self):
+        self.availableCommand = {
+            'keyval' : 'KeyValParser',
+        }
+
+    def keyval(self, argv):
+        if (len(argv) != 2):
+            print "parser keyval <pattern> <string>"
+            print
+            sys.exit(-1)
+        parser = KeyValParser(argv[0])
+        print parser.parse(argv[1])
 
