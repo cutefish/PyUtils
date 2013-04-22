@@ -232,7 +232,8 @@ class PropertyTree(object):
                         kpos += 1
                 if len(extracted) != 0:
                     groupkey = self.sep.join(extracted)
-                    groupKeys.append(groupkey)
+                    if key == '[[':
+                        groupKeys.append(groupkey)
             else:
                 if psplit[ppos] != ksplit[kpos]:
                     raise KeyError("key not match pattern." +
