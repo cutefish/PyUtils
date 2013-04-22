@@ -214,7 +214,6 @@ class PropertyTree(object):
                 pass
             elif key == '**' or key == '[[':
                 ppos += 1
-                kpos += 1
                 extracted = [ksplit[kpos - 1]]
                 if (ppos == len(psplit)):
                     if key == '[[':
