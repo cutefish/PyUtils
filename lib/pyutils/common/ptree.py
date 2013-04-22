@@ -351,6 +351,7 @@ class PropertyTree(object):
         leaf = self.add(prefix, None)
         for child in children:
             leaf.children.append(child)
+        return self
 
     def include(self, ptree):
         """ Include another ptree. 
