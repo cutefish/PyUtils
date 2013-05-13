@@ -69,20 +69,19 @@ def loadClass(name, path=[], interface=None):
         hierarchy.pop(0)
     #search for class
     curr = m
-    while True:
-        currName = hierarchy.pop(0)
-        members = inspect.getmembers(curr)
-        for clsName, cls in members:
-            if clsName == currName:
-                if len(hierarchy) != 0:
-                    curr = cls
-                    continue
-                #last level
-                if inspect.isclass(cls):
-                    if (interface != None) and (not issubclass(cls, interface)):
-                        raise ImportError("Class not found: " + name)
-                    return cls
-                else:
+    currName = hierarchy.pop(0)
+    members = inspect.getmembers(curr)
+    for clsName, cls in members:
+        if clsName == currName:
+            if len(hierarchy) != 0:
+                curr = cls
+                continue
+            #last level
+            if inspect.isclass(cls):
+                if (interface != None) and (not issubclass(cls, interface)):
                     raise ImportError("Class not found: " + name)
+                return cls
+            else:
+                raise ImportError("Class not found: " + name)
     raise ImportError("Class not found: " + name)
 
