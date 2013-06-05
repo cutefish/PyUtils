@@ -93,11 +93,11 @@ class CopyRunnable(CliRunnable):
         gatherRuleCls = conf.getClass(GATHER_PATTERN_RULE_KEY, 
                                       GatherUnderSeparateDirRule)
         gatherRule = gatherRuleCls(conf)
-        otherArgs = self.argsParser.getOtherArgs()
-        user = otherArgs[0]
-        src = otherArgs[1]
-        dst = fu.normalizeName(otherArgs[2])
-        slaveFile, r = otherArgs[3].split(':')
+        posArgs = self.argsParser.getPosArgs()
+        user = posArgs[0]
+        src = posArgs[1]
+        dst = fu.normalizeName(posArgs[2])
+        slaveFile, r = posArgs[3].split(':')
         allSlaves = fu.fileToList(slaveFile)
         rangebound = r.split('-')
         start = int(rangebound[0])
@@ -136,11 +136,11 @@ class CopyRunnable(CliRunnable):
         filterRule = filterRuleCls(conf)
         filterString = filterRule.apply(
             self.argsParser.getOption('--filter'))
-        otherArgs = self.argsParser.getOtherArgs()
-        user = otherArgs[0]
-        src = fu.normalizeName(otherArgs[1])
-        dst = otherArgs[2]
-        slaveFile, r = otherArgs[3].split(':')
+        posArgs = self.argsParser.getPosArgs()
+        user = posArgs[0]
+        src = fu.normalizeName(posArgs[1])
+        dst = posArgs[2]
+        slaveFile, r = posArgs[3].split(':')
         allSlaves = fu.fileToList(slaveFile)
         rangebound = r.split('-')
         start = int(rangebound[0])

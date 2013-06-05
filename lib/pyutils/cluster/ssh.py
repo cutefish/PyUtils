@@ -141,10 +141,10 @@ class SSHRunnable(CliRunnable):
             sys.exit(-1)
         self.argsParser.parse(argv)
         sshoptions = SSHOptions(cfgFile=self.argsParser.getOption('--conf'))
-        otherArgs = self.argsParser.getOtherArgs()
-        user = otherArgs[0]
-        hostFile, r = otherArgs[1].split(':')
-        command = otherArgs[2]
+        posArgs = self.argsParser.getPosArgs()
+        user = posArgs[0]
+        hostFile, r = posArgs[1].split(':')
+        command = posArgs[2]
         allHosts = fu.fileToList(hostFile)
         rangebound = r.split('-')
         start = int(rangebound[0])

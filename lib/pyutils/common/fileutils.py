@@ -164,13 +164,12 @@ class FURunnable(CliRunnable):
         argsparser = CustomArgsParser(optFlags=['-v'])
         argsparser.parse(argv)
         verbose = argsparser.getOption('-v')
-        otherArgs = argsparser.getOtherArgs()
-        pattern = otherArgs[0]
-        repl = otherArgs[1]
-        if len(otherArgs) == 3:
-            root = normalizeName(otherArgs[2])
+        posArgs = argsparser.getPosArgs()
+        pattern = posArgs[0]
+        repl = posArgs[1]
+        if len(posArgs) == 3:
+            root = normalizeName(posArgs[2])
         else:
             root = normalizeName(os.curdir)
         renameFiles(root, pattern, repl, verbose)
-        
 

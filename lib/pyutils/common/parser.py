@@ -90,7 +90,7 @@ class CustomArgsParser():
         self.optKeys = optKeys
         self.optFlags = optFlags
         self.options = defaults
-        self.otherArgs = []
+        self.posArgs = []
 
     def parse(self, args):
         while len(args) > 0:
@@ -100,21 +100,48 @@ class CustomArgsParser():
             if arg in self.optFlags:
                 self.options[arg] = True
             else:
-                self.otherArgs.append(arg)
+                self.posArgs.append(arg)
 
-    def getOtherArgs(self):
-        return self.otherArgs
+    def getPosArgs(self):
+        return self.posArgs
 
-    def getOption(self, key):
+    def getPosArg(self, idx):
+        return self.posArgs[idx]
+
+    def getOption(self, key, default=None):
         if self.options.has_key(key):
             return self.options[key]
         elif key in self.optFlags:
             return False
         else:
-            return None
+            return default
 
     def getOptions(self):
         return self.options
+
+def str2msec(string):
+    if string.endswith('Y'):
+        num = float(string[0:-1])
+        factor = 1000 * 60 * 60 * 24 * 365
+    elif string.endswith('M'):
+        num = float(string[0:-1])
+        factor = 1000 * 60 * 60 * 24 * 30
+    elif string.endswith('D'):
+        num = float(string[0:-1])
+        factor = 1000 * 60 * 60 * 24
+    elif string.endswith('h'):
+        num = float(string[0:-1])
+        factor = 1000 * 60 * 60
+    elif string.endswith('m'):
+        num = float(string[0:-1])
+        factor = 1000 * 60
+    elif string.endswith('s'):
+        num = float(string[0:-1])
+        factor = 1000
+    else:
+        num = float(string)
+        factor = 1
+    return num * factor
 
 class ParserRunnable(CliRunnable):
     def __init__(self):
