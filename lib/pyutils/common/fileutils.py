@@ -139,6 +139,16 @@ def renameFiles(rootDir, pattern, repl, verbose):
                 print 'Moving %s to %s' %(src, dst)
             os.rename(src, dst)
 
+def skipUtil(fh, rexp):
+    rexp = re.compile(rexp)
+    while True:
+        line = fh.readline()
+        if line == '':
+            raise EOFError
+        line = line.strip()
+        if rexp.search(line):
+            return line
+
 class FURunnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
