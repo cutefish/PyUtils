@@ -3,7 +3,7 @@
 modules = {
     "config" : "modify configuration",
     "fileutils" : "file utils",
-    "parser": "parser test utils",
+    "parse": "parse utils",
     "ptree" : "property tree",
 }
 

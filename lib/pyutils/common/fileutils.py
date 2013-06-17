@@ -11,18 +11,21 @@ import shutil
 import sys
 
 from pyutils.common.clirunnable import CliRunnable
-from pyutils.common.parser import CustomArgsParser
+from pyutils.common.parse import CustomArgsParser
 
 def normalizeName(fileName):
     return os.path.abspath(os.path.expanduser(fileName))
 
-def fileToList(fileName):
+def fileToList(fileName, include='.*', exclude='#'):
     f = open(normalizeName(fileName))
+    inclRe = re.compile(include)
+    exclRe = re.compile(exclude)
     ret = []
     for line in f:
-        if line.startswith("#"):
+        if exclRe.search(line):
             continue
-        ret.append(line.strip())
+        if inclRe.search(line):
+            ret.append(line.strip())
     return ret
 
 def listToFile(fileName, ls):

@@ -13,7 +13,7 @@ import sys
 import pyutils.common.fileutils as fu
 from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.config import Configuration
-from pyutils.common.parser import CustomArgsParser
+from pyutils.common.parse import CustomArgsParser
 
 class SSHOptions:
     """ Options of the ssh command.  """

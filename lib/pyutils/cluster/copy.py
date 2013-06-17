@@ -14,8 +14,7 @@ import pyutils.common.fileutils as fu
 import pyutils.common.importutils as iu
 from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.config import Configuration
-from pyutils.common.parser import CustomArgsParser
-from pyutils.common.parser import Parser
+from pyutils.common.parse import CustomArgsParser
 from pyutils.cluster.ssh import SSHOptions
 
 FILTER_PATTERN_RULE_KEY = "filter.pattern.rule"
