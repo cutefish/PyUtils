@@ -123,7 +123,7 @@ class SSHCommand:
             proc = subprocess.Popen(shlex.split(shell), stdout=subprocess.PIPE)
             return proc.stdout.read()
 
-class SSHRunnable(CliRunnable):
+class SSHCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'cmd' : 'run command',

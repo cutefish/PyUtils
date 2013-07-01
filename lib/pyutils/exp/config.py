@@ -1,10 +1,12 @@
 import os
 import re
 import shutil
+import sys
 
+from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.parse import CustomArgsParser
 
-from core import *
+from pyutils.exp.core import *
 
 def parseGenFile(fn):
     linecount = 0
@@ -59,6 +61,9 @@ def genExpPoints(cmdLine, constLines, varLines):
 
     Each experiment point can be represented by a dict.
     """
+    print 'command:', cmdLine
+    print 'consts:', constLines
+    print 'vars:', varLines
     expPoints = []
     #get the const dictionary
     consts = {}
@@ -138,20 +143,20 @@ def expandValues(target, against):
     To simplify, we do not allow more than one references.
     """
     for key, val in target.iteritems():
-        if not '$' in val:
+        if not '@' in val:
             continue
-        #try to replace $name with against[name]
-        while '$' in val:
+        #try to replace @name with against[name]
+        while '@' in val:
             match = re.search(EXPAND_NAME_REGEX, val)
             if match is None:
                 raise SyntaxError('%s is not expandable' %val)
             expandName = match.group()
-            expandKey = expandName.lstrip('$')
+            expandKey = expandName.lstrip('@')
             if not expandKey in against:
                 raise SyntaxError(
                     'Unknown expand name: %s. '
-                    'Possibly because multi-reference is not allowed' %(val))
-            val = re.sub(re.escape(expandName), str(against[expandKey]), val)
+                    'Possibly because multi-reference is not allowed' %(expandKey))
+            val = re.sub(expandName, str(against[expandKey]), val)
         target[key] = val
 
 def evaluateValues(target):
@@ -193,28 +198,59 @@ def writeExpPoints(projectDir, name, points):
         fh.write(EXP_POINT_CONFIG_END + '\n\n')
     fh.close()
 
+class ConfigCli(CliRunnable):
+
+    def __init__(self):
+        self.availableCommand = {
+            'command': 'configure exp point from command line',
+            'genfile': 'configure exp point from generation file',
+        }
+
+    def command(self, argv):
+        if (len(argv) < 3):
+            print
+            print 'command <project dir> <name> <command> [--consts consts, --vars vars]'
+            print '  --consts   --  "k1=v1;k2=v2;k3=v3"'
+            print '  --vars     --  "k1=[v1,v2,v3];k2=[w1,w2,w3]" '
+            print '                 or "k1,k2=[(v1,w1),(v2,w2),(v3,w3)]'
+            sys.exit(-1)
+        projectDir = argv[0]
+        name = argv[1]
+        points = parseCommandLine(argv[2:])
+        writeExpPoints(projectDir, name, points)
+
+    def genfile(self, argv):
+        if (len(argv) != 3):
+            print
+            print 'genfile <project dir> <name> <file>'
+            sys.exit(-1)
+        projectDir = argv[0]
+        name = argv[1]
+        points = parseGenFile(argv[2])
+        writeExpPoints(projectDir, name, points)
+
 ###### TEST #####
 def test():
     fileLines = [
         '#A test file for config generation\n',
         '\n',
         '#command\n',
-        'python -m addThreeValues $u $v $w\n',
+        'python -m addThreeValues @u @v @w\n',
         '\n',
         '#consts\n',
         'x = 2\n',
-        'y = 2 * $x\n',
+        'y = 2 * @x\n',
         '\n',
         '#vars\n',
-        'u = [$y, 2 * $y]\n',
-        'v, w = [(2*$x, 3+$y), (3*$x, 4+$y)]\n',
+        'u = [@y, 2 * @y]\n',
+        'v, w = [(2*@x, 3+@y), (3*@x, 4+@y)]\n',
     ]
     commandLine = [
-        'python -m addThreeValues $u $v $w',
+        'python -m addThreeValues @u @v @w',
         '--consts',
-        'x=2; y=2*$x',
+        'x=2; y=2*@x',
         '--vars',
-        'u=[$y, 2*$y]; v,w=[(2*$x, 3+$y), (3*$x, 4+$y)]',
+        'u=[@y, 2*@y]; v,w=[(2*@x, 3+@y), (3*@x, 4+@y)]',
     ]
     #first make the project directory
     projectDir = '/tmp/pyu_test_exp'

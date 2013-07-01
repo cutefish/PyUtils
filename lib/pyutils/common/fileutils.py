@@ -152,7 +152,7 @@ def skipUtil(fh, rexp):
         if rexp.search(line):
             return line
 
-class FURunnable(CliRunnable):
+class FUCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'catfiles' : 'cat all files in a root directory',

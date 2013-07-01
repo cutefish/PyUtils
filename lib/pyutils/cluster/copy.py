@@ -62,7 +62,7 @@ class GatherUnderSeparateDirRule():
         return
 
 
-class CopyRunnable(CliRunnable):
+class CopyCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'gather': 'Copy a dir/file to all nodes',

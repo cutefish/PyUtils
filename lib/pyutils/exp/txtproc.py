@@ -356,7 +356,7 @@ class TxtProc:
         ret += "outputs: " + str(self.outputs) + "\n"
         return ret
 
-class TxtProcRunnable(CliRunnable):
+class TxtProcCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'help': 'show built-in keys and classes',

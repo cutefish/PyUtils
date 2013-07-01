@@ -479,7 +479,7 @@ def testPropertyTree():
     print pt.getv("*.*.[.mapper.[.[[")
     print pt.getv("[[.mapper.**")
 
-class PTreeRunnable(CliRunnable):
+class PTreeCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'load' : 'show a property tree dump file',

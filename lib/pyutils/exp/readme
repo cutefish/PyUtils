@@ -17,8 +17,8 @@ file is in the following format to be recognized by the follow-up steps:
 
 ...
 ##### EXPERIMENT POINT #####
-experiment.point.id = $id
-experiment.run.command = "$command"
+experiment.point.id = @id
+experiment.run.command = "@command"
 ... ivars ...
 ##### END #####
 ...
@@ -37,13 +37,13 @@ values from consts or variables. Consts are key/value pairs where value is a
 single number and keeps the same for all the exp points during this configure
 generation. Variables are key/values pairs where values are a list of values.
 Each experiment point takes one of the value. Consts are in the form "key =
-value". Values support value expansion form $var. Variables are in the form
+value". Values support value expansion form @var. Variables are in the form
 "key = [value1, value2...]" or "key1, key2 = [(value11, value12), (value21,
 value22), ...]
 
 For example:
     command:
-        python -m addTwoValues $x $y
+        python -m addTwoValues @x @y
     consts:
         x = 10
     vars:
@@ -65,13 +65,13 @@ This will generate a configure file with 4 experiment points:
 
 The configuration file can be generated from command line or a generation file.
 To use configuration tool, type:
-    pyutils exp.auto config command <command> <out> [--consts consts, --vars vars]
+    pyutils exp.config command <project dir> <name> <command> [--consts consts, --vars vars]
         --consts      --  "k1=v1;k2=v2;k3=v3"
         --vars        --  "k1=[v1,v2,v3];k2=[w1,w2,w3]" or "k1,k2=[(v1,w1),(v2,w2),(v3,w3)]"
 or
-    pyutils exp.auto config file <config file> <out>
+    pyutils exp.config genfile <project dir> <name> <config file>
 For example:
-    pyutils exp.auto config command "python -m addTwoValues $x $y" out --consts x=10 --vars y=1,2,3,4
+    pyutils exp.config command "python -m addTwoValues @x @y" out --consts x=10 --vars y=1,2,3,4
 
 The generation file is in the form
     #command
@@ -82,7 +82,7 @@ The generation file is in the form
     ...
 For example:
     #command:
-    python -m addTwoValues $x $y
+    python -m addTwoValues @x @y
 
     #consts:
     x = 10

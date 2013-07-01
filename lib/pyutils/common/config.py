@@ -186,7 +186,7 @@ class PropConfigWriter:
             f.write('%s = %s\n' %(key, value))
         f.close()
 
-class ConfigRunnable(CliRunnable):
+class ConfigCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'getv' : 'get a property to configuration file',

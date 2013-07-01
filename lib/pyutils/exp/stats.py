@@ -57,7 +57,7 @@ class BasicStatsReduer(Reducer):
         return "BasicStatsReduer: " + \
                 "correction= %s" % self.correction
 
-class StatsRunnalbe(CliRunnable):
+class StatsCli(CliRunnable):
 
     def __init__(self):
         self.availableCommand = {

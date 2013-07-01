@@ -46,6 +46,7 @@ def loadClass(name, path=[], interface=None):
     @return the class object or None if error
     """
     success = False
+    #first try to load @name as a module
     try:
         m = loadModule(name, path)
         success = True
@@ -62,26 +63,48 @@ def loadClass(name, path=[], interface=None):
                 if issubclass(cls, interface) and not cls is interface:
                     return cls
         return None
-    #load module is not fully successful, pick up from what's left
+    #load module is not fully successful, this is possibly because name is a
+    #class name. Pick up from what's left
     hierarchy = name.split('.')
     loaded = lname.split('.')
     for l in loaded:
         hierarchy.pop(0)
     #search for class
     curr = m
-    currName = hierarchy.pop(0)
-    members = inspect.getmembers(curr)
-    for clsName, cls in members:
-        if clsName == currName:
-            if len(hierarchy) != 0:
-                curr = cls
-                continue
-            #last level
-            if inspect.isclass(cls):
-                if (interface != None) and (not issubclass(cls, interface)):
-                    raise ImportError("Class not found: " + name)
-                return cls
+    while not len(hierarchy) == 0:
+        searchName = hierarchy.pop(0)
+        members = inspect.getmembers(curr)
+        matchcls = None
+        for clsName, cls in members:
+            if clsName == searchName:
+                matchcls = cls
+        if matchcls is None:
+            raise ImportError('Name not found: %s'%searchName)
+        if len(hierarchy) == 0:
+            #check if match is a class of required interface
+            if inspect.isclass(matchcls):
+                if (interface != None) and (not issubclass(matchcls, interface)):
+                    raise ImportError(
+                        "Found class %s but not match interface %s" %(matchcls, interface))
+                return matchcls
             else:
-                raise ImportError("Class not found: " + name)
-    raise ImportError("Class not found: " + name)
+                raise ImportError("Match name is not a class: %s"%matchcls)
+        curr = matchcls
+    raise ImportError("Name not found: %s"%searchName)
+    #curr = m
+    #currName = hierarchy.pop(0)
+    #members = inspect.getmembers(curr)
+    #for clsName, cls in members:
+    #    if clsName == currName:
+    #        if len(hierarchy) != 0:
+    #            curr = cls
+    #            continue
+    #        #last level
+    #        if inspect.isclass(cls):
+    #            if (interface != None) and (not issubclass(cls, interface)):
+    #                raise ImportError("Class not found: " + name)
+    #            return cls
+    #        else:
+    #            raise ImportError("Class not found: " + name)
+    #raise ImportError("Class not found: " + name)
 

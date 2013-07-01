@@ -154,7 +154,7 @@ def str2bytes(string):
         factor = 1
     return num * factor
 
-class ParseRunnable(CliRunnable):
+class ParseCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'keyval' : 'KeyValParser',
