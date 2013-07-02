@@ -109,7 +109,7 @@ def genExpPoints(cmdLine, constLines, varLines):
     count = 0
     currIdx = [0] * len(varList)
     while count < total:
-        currDict = {}
+        point = Point()
         #fill up the dictionary of one exp points
         for idx, keysvalues in enumerate(varList):
             ktuple, vlist = keysvalues
@@ -117,8 +117,8 @@ def genExpPoints(cmdLine, constLines, varLines):
             if not isinstance(vtuple, tuple):
                 vtuple = tuple([vtuple])
             for i in range(len(ktuple)):
-                currDict[ktuple[i]] = vtuple[i]
-        expPoints.append(currDict)
+                point[ktuple[i]] = vtuple[i]
+        expPoints.append(point)
         count += 1
         #advance index
         currIdx[0] += 1
@@ -132,7 +132,7 @@ def genExpPoints(cmdLine, constLines, varLines):
     #now expPoints has all the vars, update with consts and command
     for point in expPoints:
         point.update(consts)
-        command = {EXP_COMMAND_KEY: cmdLine}
+        command = {EXP_POINT_COMMAND_KEY: cmdLine}
         expandValues(command, point)
         point.update(command)
     return expPoints
@@ -190,11 +190,7 @@ def writeExpPoints(projectDir, name, points):
     fh = open('%s/%s/%s' %(projectDir, CONFIG_DIR, name), 'w')
     for point in points:
         fh.write(EXP_POINT_CONFIG_HEADER + '\n')
-        fh.write('%s = %s\n' %(EXP_COMMAND_KEY, point[EXP_COMMAND_KEY]))
-        fh.write('%s = %s\n' %(EXP_POINT_ID_KEY, point[EXP_POINT_ID_KEY]))
-        for key, value in point.iteritems():
-            if key not in [EXP_COMMAND_KEY, EXP_POINT_ID_KEY]:
-                fh.write('%s = %s\n' %(key, value))
+        point.write(fh)
         fh.write(EXP_POINT_CONFIG_END + '\n\n')
     fh.close()
 
@@ -207,7 +203,9 @@ class ConfigCli(CliRunnable):
         }
 
     def command(self, argv):
-        if (len(argv) < 3):
+        parser = CustomArgsParser(optKeys=['--consts', '--vars'])
+        parser.parse(list(argv))
+        if (len(parser.getPosArgs()) < 3):
             print
             print 'command <project dir> <name> <command> [--consts consts, --vars vars]'
             print '  --consts   --  "k1=v1;k2=v2;k3=v3"'

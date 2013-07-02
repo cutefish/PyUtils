@@ -90,7 +90,7 @@ class CustomArgsParser(object):
             arg = args.pop(0)
             if arg in self.optKeys:
                 self.options[arg] = args.pop(0)
-            if arg in self.optFlags:
+            elif arg in self.optFlags:
                 self.options[arg] = True
             else:
                 self.posArgs.append(arg)
