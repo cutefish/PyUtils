@@ -19,7 +19,7 @@ def parseConfigFile(fn):
             break
         #a new experiment point
         if re.match(EXP_POINT_CONFIG_HEADER, line):
-            point = Point()
+            pointKeys = {}
             while True:
                 line = fh.readline()
                 lineno += 1
@@ -36,8 +36,8 @@ def parseConfigFile(fn):
                 key, val = line.split('=')
                 key = key.strip()
                 val = val.strip()
-                point[key] = val
-            points.append(point)
+                pointKeys[key] = val
+            points.append(Point(pointKeys))
     return points
 
 class AlreadyRunException(Exception):
@@ -58,7 +58,7 @@ def runPoints(projectDir, points, lb, ub, numProcs=1, skip=False):
         if len(procs) < numProcs and len(points) != 0:
             for i in range(len(procs), numProcs):
                 point = points.pop()
-                pointId = int(point[EXP_POINT_ID_KEY])
+                pointId = int(point.keys[EXP_POINT_ID_KEY])
                 if not (pointId >= lb and pointId <= ub):
                     continue
                 try:
@@ -81,7 +81,7 @@ def runPoints(projectDir, points, lb, ub, numProcs=1, skip=False):
 
 def setupPoint(projectDir, point, skip):
     #make the directory
-    pointId = point[EXP_POINT_ID_KEY]
+    pointId = point.keys[EXP_POINT_ID_KEY]
     runDir = '%s/%s/%s'%(projectDir, DATA_DIR, pointId)
     if os.path.exists(runDir):
         if skip:
@@ -92,8 +92,8 @@ def setupPoint(projectDir, point, skip):
     #write the key of the point
     keyFile = '%s/key'%(runDir)
     keyfh = open(keyFile, 'w')
-    point.write(keyfh)
-    return point[EXP_POINT_COMMAND_KEY], runDir
+    point.writeKeys(keyfh)
+    return point.keys[EXP_POINT_COMMAND_KEY], runDir
 
 class RunCli(CliRunnable):
     def __init__(self):

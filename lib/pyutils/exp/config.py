@@ -40,7 +40,7 @@ def parseGenFile(fn):
     else:
         varLines = lines[1:constsIdx]
         constLines = lines[constsIdx:]
-    return genExpPoints(cmdLine, constLines, varLines)
+    return genExpPointKeys(cmdLine, constLines, varLines)
 
 def parseCommandLine(argv):
     parser = CustomArgsParser(optKeys=['--consts', '--vars'])
@@ -54,9 +54,9 @@ def parseCommandLine(argv):
     varLines = []
     if varsOption is not None:
         varLines.extend(varsOption.split(';'))
-    return genExpPoints(cmdLine, constLines, varLines)
+    return genExpPointKeys(cmdLine, constLines, varLines)
 
-def genExpPoints(cmdLine, constLines, varLines):
+def genExpPointKeys(cmdLine, constLines, varLines):
     """Generate experiment points.
 
     Each experiment point can be represented by a dict.
@@ -109,7 +109,7 @@ def genExpPoints(cmdLine, constLines, varLines):
     count = 0
     currIdx = [0] * len(varList)
     while count < total:
-        point = Point()
+        pointKeys = {}
         #fill up the dictionary of one exp points
         for idx, keysvalues in enumerate(varList):
             ktuple, vlist = keysvalues
@@ -117,8 +117,8 @@ def genExpPoints(cmdLine, constLines, varLines):
             if not isinstance(vtuple, tuple):
                 vtuple = tuple([vtuple])
             for i in range(len(ktuple)):
-                point[ktuple[i]] = vtuple[i]
-        expPoints.append(point)
+                pointKeys[ktuple[i]] = vtuple[i]
+        expPoints.append(pointKeys)
         count += 1
         #advance index
         currIdx[0] += 1
@@ -130,11 +130,11 @@ def genExpPoints(cmdLine, constLines, varLines):
                     break
                 currIdx[i] = 0
     #now expPoints has all the vars, update with consts and command
-    for point in expPoints:
-        point.update(consts)
+    for pointKey in expPoints:
+        pointKey.update(consts)
         command = {EXP_POINT_COMMAND_KEY: cmdLine}
-        expandValues(command, point)
-        point.update(command)
+        expandValues(command, pointKey)
+        pointKey.update(command)
     return expPoints
 
 def expandValues(target, against):
@@ -171,7 +171,7 @@ def evaluateValues(target):
             else:
                 raise ValueError('Cannot evaluate: %s' %val)
 
-def writeExpPoints(projectDir, name, points):
+def writeExpPoints(projectDir, name, pointKeys):
     #we first find out how many points have been generated
     countFile = '%s/%s/%s'%(projectDir, CONFIG_DIR, CONFIG_COUNT_FILE)
     if not os.path.exists(countFile):
@@ -181,16 +181,17 @@ def writeExpPoints(projectDir, name, points):
     fh = open(countFile, 'r')
     count = int(fh.readline().strip())
     fh.close()
-    for point in points:
+    for pointKey in pointKeys:
         count += 1
-        point[EXP_POINT_ID_KEY] = count
+        pointKey[EXP_POINT_ID_KEY] = count
     fh = open(countFile, 'w')
     fh.write('%s\n'%count)
     fh.close()
     fh = open('%s/%s/%s' %(projectDir, CONFIG_DIR, name), 'w')
-    for point in points:
+    for pointKey in pointKeys:
+        point = Point(pointKey)
         fh.write(EXP_POINT_CONFIG_HEADER + '\n')
-        point.write(fh)
+        point.writeKeys(fh)
         fh.write(EXP_POINT_CONFIG_END + '\n\n')
     fh.close()
 
