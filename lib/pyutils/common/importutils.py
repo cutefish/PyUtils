@@ -79,7 +79,9 @@ def loadClass(name, path=[], interface=None):
             if clsName == searchName:
                 matchcls = cls
         if matchcls is None:
-            raise ImportError('Name not found: %s'%searchName)
+            raise ImportError('Name %s not found in %s. '
+                              'Module load error: module=%s, error=%s'
+                              %(searchName, curr, str(n), str(e)))
         if len(hierarchy) == 0:
             #check if match is a class of required interface
             if inspect.isclass(matchcls):
