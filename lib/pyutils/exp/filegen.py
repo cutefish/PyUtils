@@ -1,7 +1,6 @@
 import errno
 import os
 import re
-import shutil
 import sys
 
 from pyutils.common.clirunnable import CliRunnable
@@ -240,6 +239,7 @@ class FileGenCli(CliRunnable):
         print FileGen.KEYWORDS
         print FileGen.WRITE_ALL_PARAMS_KEY
         print FileGen.OUTDIR_KEY
+        print FileGen.ID_KEY
 
     def generate(self, argv):
         if (len(argv) != 1):

@@ -69,7 +69,7 @@ class CopyCli(CliRunnable):
             'scatter': 'Copy a dir/file from all nodes',
         }
         self.argsParser = CustomArgsParser([
-            '--conf', 
+            '--conf',
             '--slaves',
             '--filter',
         ])

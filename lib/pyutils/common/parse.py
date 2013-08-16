@@ -154,6 +154,27 @@ def str2bytes(string):
         factor = 1
     return num * factor
 
+class RangeStringParser(object):
+    def __init__(self):
+        pass
+
+    def parse(self, string):
+        """Example string: [1, 3:6, 9]."""
+        ret = []
+        if not re.match('^\[[0-9,: ]+\]$', string):
+            raise SyntaxError('Range string must in the form ^\[[0-9,: ]+\]$')
+        string = string.strip('[]')
+        for n in string.split(','):
+            if ':' not in n:
+                ret.append(int(n))
+            else:
+                ranges = n.split(':')
+                if len(ranges) == 2:
+                    ret += range(int(ranges[0]), int(ranges[1]))
+                else:
+                    ret += range(int(ranges[0]), int(ranges[1]), int(ranges[2]))
+        return ret
+
 class ParseCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
@@ -168,3 +189,17 @@ class ParseCli(CliRunnable):
         parser = KeyValParser(argv[0])
         print parser.parse(argv[1])
 
+##### TEST #####
+def testRangeStringParser():
+    parser = RangeStringParser()
+    print parser.parse('[1,2,3]')
+    print parser.parse('[1, 2:4, 5:9:2, 11]')
+
+def test():
+    testRangeStringParser()
+
+def main():
+    test()
+
+if __name__ == '__main__':
+    main()
