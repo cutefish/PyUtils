@@ -1,6 +1,6 @@
 
 modules = {
-    "config" : "Configure exp points of a project",
+    "filegen" : "Generate files",
     "stats" : "Calculate and print stats",
     "run"   : "Run experiments",
     "txtproc" : "Process Text",

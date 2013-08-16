@@ -222,12 +222,31 @@ class FileGenCli(CliRunnable):
             'generate': 'generate from config file',
         }
 
+    def example(self, argv):
+        print '#outdir'
+        print '/tmp/pyutilfilegen'
+        print '#params'
+        print 'const a = 1'
+        print 'var b = [1,2,3]'
+        print 'var c, d = [(1, 2), (2, 3)]'
+        print 'sub e = @a'
+        print '#file config'
+        print '@filegen.write.all.params'
+        print '#file self'
+        print '@filegen.outdir'
+        print '@filegen.id'
+
+    def keywords(self, argv):
+        print FileGen.KEYWORDS
+        print FileGen.WRITE_ALL_PARAMS_KEY
+        print FileGen.OUTDIR_KEY
+
     def generate(self, argv):
         if (len(argv) != 1):
             print
             print 'generate <config file>'
             sys.exit(-1)
-        FileGen().generate(argv[1])
+        FileGen().generate(argv[0])
 
 ###### TEST #####
 def test():
