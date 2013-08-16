@@ -76,6 +76,29 @@ def runSSHCmd(args):
         subprocess.call(shlex.split(command),
                         stdout=sys.stdout, stderr=sys.stderr)
 
+def runSSHScatter(args):
+    #parse the args with ssh syntax
+    parser = SSHArgsParser()
+    parser.parse(args)
+    #parse the multi-host args
+    if len(parser.posargs) != 2:
+        raise SyntaxError(
+            'Expect 2 positional args, got %s: %s'%(len(posargs), posargs))
+    ##the first is the src path, the second is the all hosts dst path
+    src = parser.posargs[0]
+    dsts = parser.posargs[1]
+    ##parse hosts
+    if '@' in dsts:
+        user, dsts = dsts.split('@')
+    else:
+        user = getpass.getuser()
+    try:
+        hostfile, rest = re.split(':', dsts, 1)
+        strlist = rest.split(':')
+        if not strlist[0].startswith('['):
+            raise SyntaxError('
+
+
 class SSHCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
