@@ -172,7 +172,7 @@ class RangeStringParser(object):
                 if len(ranges) == 2:
                     ret += range(int(ranges[0]), int(ranges[1]))
                 else:
-                    ret += range(int(ranges[0]), int(ranges[1]), int(ranges[2]))
+                    ret += range(int(ranges[0]), int(ranges[2]), int(ranges[1]))
         return ret
 
 class ParseCli(CliRunnable):
