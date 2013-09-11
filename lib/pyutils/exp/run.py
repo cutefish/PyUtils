@@ -38,6 +38,11 @@ def runCommands(commands, numProcs):
                     fh = open('%s/__success__'%path, 'w')
                     fh.write('%s'%retcode)
                     fh.close()
+                else:
+                    try:
+                        os.remove('%s/__success__'%path)
+                    except:
+                        pass
         #check terminate condition
         if len(procs) == 0 and len(commands) == 0:
             break
