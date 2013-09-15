@@ -24,6 +24,17 @@ class FileGen(object):
             line = fh.readline()
             if line == '':
                 break
+            line = line.strip()
+            if line.endswith('\\'):
+                #we encounter a continue mark
+                shouldCont = True
+                line = line.strip('\\')
+                while shouldCont:
+                    curr = fh.readline()
+                    if not curr.endswith('\\'):
+                        shouldCont = False
+                    line += curr.strip().strip('\\')
+            print line
             if line.startswith('#'):
                 for kw in FileGen.KEYWORDS:
                     if line.startswith(kw):
