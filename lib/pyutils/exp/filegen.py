@@ -31,10 +31,13 @@ class FileGen(object):
                 line = line.strip('\\')
                 while shouldCont:
                     curr = fh.readline()
+                    if curr == '':
+                        raise SyntaxError(
+                            'unexpected EOF while parsing continous line: %s'%line)
+                    curr = curr.strip()
                     if not curr.endswith('\\'):
                         shouldCont = False
-                    line += curr.strip().strip('\\')
-            print line
+                    line += curr.strip('\\')
             if line.startswith('#'):
                 for kw in FileGen.KEYWORDS:
                     if line.startswith(kw):
