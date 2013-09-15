@@ -162,7 +162,8 @@ class RangeStringParser(object):
         """Example string: [1, 3:6, 9]."""
         ret = []
         if not re.match('^\[[0-9,: ]+\]$', string):
-            raise SyntaxError('Range string must in the form ^\[[0-9,: ]+\]$')
+            raise SyntaxError(
+                'Range string must in the form ^\[[0-9,: ]+\]$: %s'%string)
         string = string.strip('[]')
         for n in string.split(','):
             if ':' not in n:

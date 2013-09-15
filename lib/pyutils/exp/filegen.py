@@ -193,6 +193,7 @@ class FileGen(object):
                     else:
                         new = self.subContent(content, params)
                         fh.write(new)
+                        fh.write('\n')
                 fh.close()
 
     def mkdir_p(self, path):
