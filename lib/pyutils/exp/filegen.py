@@ -43,15 +43,30 @@ class FileGen(object):
                     if line.startswith(kw):
                         self.processLineBuf(linebuf)
                         assert len(linebuf) == 0, \
-                                'Line buffer is not empty after process'
+                                ('Line buffer is not empty after process: %s'
+                                 %linebuf)
                         linebuf.append(line)
             else:
                 linebuf.append(line)
         self.processLineBuf(linebuf)
 
     def processLineBuf(self, linebuf):
+        #pop out the empty lines
+        while len(linebuf) != 0:
+            first = linebuf[0]
+            first = first.strip()
+            if len(first) == 0:
+                linebuf.pop(0)
+                continue
+            elif not first.startswith('#'):
+                raise SyntaxError(
+                    'first line of section must start with a keyword: %s'
+                    %first)
+            else:
+                break
         if len(linebuf) == 0:
             return
+        #parse according to section keyword
         first = linebuf[0]
         if first.startswith('#outdir'):
             self.processOutdir(linebuf)
@@ -59,6 +74,10 @@ class FileGen(object):
             self.processParams(linebuf)
         elif first.startswith('#file'):
             self.processFile(linebuf)
+        else:
+            raise SyntaxError(
+                'unknown keyword: %s'%first)
+        print 'Done processing %s' %first
 
     def processOutdir(self, linebuf):
         linebuf.pop(0)
@@ -170,7 +189,7 @@ class FileGen(object):
             raise ValueError('File name appeared before %s'%filename)
         self.files[filename] = contents
 
-    def generate(self, fn):
+    def generate(self, fn, start=0):
         self.readgenconf(fn)
         if self.outdir is None:
             raise SyntaxError('#outdir is not specified')
@@ -180,10 +199,11 @@ class FileGen(object):
             self.files['__config__'] = ['@' + FileGen.WRITE_ALL_PARAMS_KEY]
         self.mkdir_p(self.outdir)
         for i, params in enumerate(self.params):
-            outdir = '%s/%s'%(self.outdir, i)
+            index = start + i
+            outdir = '%s/%s'%(self.outdir, index)
             self.mkdir_p(outdir)
             params[FileGen.OUTDIR_KEY] = outdir
-            params[FileGen.ID_KEY] = i
+            params[FileGen.ID_KEY] = index
             for name, contents in self.files.iteritems():
                 outname = '%s/%s'%(outdir, name)
                 fh = open(outname, 'w')
@@ -257,11 +277,14 @@ class FileGenCli(CliRunnable):
         print FileGen.ID_KEY
 
     def generate(self, argv):
-        if (len(argv) != 1):
+        if (len(argv) < 1 or len(argv) > 2):
             print
-            print 'generate <config file>'
+            print 'generate <config file> [start]'
             sys.exit(-1)
-        FileGen().generate(argv[0])
+        if len(argv) == 1:
+            FileGen().generate(argv[0])
+        else:
+            FileGen().generate(argv[0], int(argv[1]))
 
 ###### TEST #####
 def test():
