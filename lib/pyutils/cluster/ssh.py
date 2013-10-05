@@ -5,7 +5,6 @@ ssh related utils.
 
 """
 import getpass
-import os
 import re
 import shlex
 import subprocess
@@ -166,7 +165,7 @@ def parseAddrString(address):
         strlist = rest.split(':')
         if not strlist[0].startswith('['):
             raise SyntaxError(
-                'Range string should be in the form ^\[[0-9,: ]+\]$: '%dsts)
+                'Range string should be in the form ^\[[0-9,: ]+\]$: '%strlist[0])
         rind = 0
         for i, string in enumerate(strlist):
             if ']' in string:
@@ -183,8 +182,8 @@ def parseAddrString(address):
         dstdir = ''.join(strlist[rind + 1 : ])
     except Exception as e:
         raise SyntaxError(
-            'Dest string %s should be in the form hostfile:rangestr:dstdir\n'
-            'Error message: %s' %(dsts, e))
+            'Address string %s should be in the form hostfile:rangestr:path\n'
+            'Error message: %s' %(address, e))
     return hostfile, r, dstdir
 
 class SSHCli(CliRunnable):
