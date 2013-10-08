@@ -245,7 +245,7 @@ def parseAddrString(address):
         dstdir = ''.join(strlist[rind + 1 : ])
     except Exception as e:
         raise SyntaxError(
-            'Address string %s should be in the form hostfile:rangestr:dstdir\n'
+            'Address string %s should be in the form hostfile:rangestr:path\n'
             'Error message: %s' %(address, e))
     return hostfile, r, dstdir
 

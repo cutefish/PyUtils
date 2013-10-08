@@ -4,15 +4,9 @@ system.command
 System command utitlies
 """
 import getpass
-import shlex
+import pexpect
 import subprocess
 import sys
-import time
-
-try:
-    import pexpect
-except:
-    pass
 
 from pyutils.common.clirunnable import CliRunnable
 
@@ -45,48 +39,16 @@ class Sudoer(object):
         except KeyboardInterrupt as e:
             print e
 
-class PeriodicalExecutor(object):
-    """
-    Periodically execute a command.
-    """
-    def __init__(self, command, interval=60):
-        self._commands = command.split(';')
-        self._interval = interval
-
-    def run(self):
-        try:
-            while(True):
-                for command in self._commands:
-                    subprocess.call(shlex.split(command),
-                                    stdout = sys.stdout, stderr = sys.stderr)
-                time.sleep(self._interval)
-        except KeyboardInterrupt:
-            pass
-
 class CommandRunnable(CliRunnable):
     def __init__(self):
-        self.availableCommand = {
-            'periodexec' : 'run command periodically',
-        }
-
-    def periodexec(self, argv):
-        if (len(argv) < 1):
-            print
-            print 'command periodexec <command> [interval]'
-            print
-            sys.exit(-1)
-        interval = 60
-        command = argv[0]
-        if len(argv) > 1:
-            interval = int(argv[1])
-        executor = PeriodicalExecutor(command, interval)
-        executor.run()
+        pass
 
 def main():
     sudoer = Sudoer()
-    sudoer.execute('touch /home/xyu40/t')
-    subprocess.call('ls -l /home/xyu40/t'.split(' '), stdout=sys.stdout)
-    sudoer.execute('rm /home/xyu40/t')
+    sudoer.execute('touch /home/%s/t'%getpass.getuser())
+    subprocess.call(('ls -l /home/%s/t'%getpass.getuser()).split(' '),
+                    stdout=sys.stdout)
+    sudoer.execute('rm /home/%s/t'%getpass.getuser())
 
 if __name__ == '__main__':
     main()
