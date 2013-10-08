@@ -86,7 +86,7 @@ class EC2Runnable(CliRunnable):
         for resv in resvList:
             for instance in resv.instances:
                 publicIp = instance.public_dns_name
-                if publicIp != "":
+                if publicIp != "" and publicIp is not None:
                     print publicIp
 
     def private_ips(self, argv):
@@ -100,7 +100,7 @@ class EC2Runnable(CliRunnable):
         for resv in resvList:
             for instance in resv.instances:
                 privateIp = instance.private_ip_address
-                if privateIp != "":
+                if privateIp != "" and privateIp is not None:
                     print privateIp
 
     #start instances
