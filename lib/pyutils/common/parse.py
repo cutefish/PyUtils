@@ -4,7 +4,6 @@ parse.py
 A object that has a parse() function
 """
 import re
-import shlex
 import sys
 
 from pyutils.common.clirunnable import CliRunnable
@@ -16,7 +15,7 @@ class KeyValParser(object):
 
         pattern format {k:<key pattern>}<pattern>{v:<value pattern>}
         special indicator:
-            %str, %numstr, %alpha, %lc, %uc, %name, %path, 
+            %str, %numstr, %alpha, %lc, %uc, %name, %path,
             %int, %long, %dec, %bin, %oct, %hex, %float.
 
     """
@@ -142,13 +141,13 @@ def str2bytes(string):
         factor = 1024 * 1024 * 1024 * 1024
     if string.endswith('G') or string.endswith('g'):
         num = float(string[0:-1])
-        factor = 1024 * 1024 * 1024 
+        factor = 1024 * 1024 * 1024
     if string.endswith('M') or string.endswith('m'):
         num = float(string[0:-1])
-        factor = 1024 * 1024 
+        factor = 1024 * 1024
     if string.endswith('K') or string.endswith('k'):
         num = float(string[0:-1])
-        factor = 1024 
+        factor = 1024
     else:
         num = float(string[0:-1])
         factor = 1

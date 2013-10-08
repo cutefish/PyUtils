@@ -7,8 +7,39 @@ import subprocess
 import time
 
 from pyutils.common.clirunnable import CliRunnable
-from pyutils.common.parse import CustomArgsParser
-from pyutils.common.parse import RangeStringParser
+from pyutils.common.execute import CmdObject, runCommands
+from pyutils.common.parse import CustomArgsParser, RangeStringParser
+
+class ProjCmd(CmdObject):
+    def __init__(self, command, path):
+        CmdObject.__init__(self, command)
+        self.path = path
+        self.outfile = None
+        self.errfile = None
+
+    @property
+    def cmd(self):
+        return '%s 1>%s, 2>%s'%(self.command, self.outfile, self.errfile)
+
+    def startup(self):
+        self.outfile = '%s/stdout'%self.path
+        self.errfile = '%s/stderr'%self.path
+        self.stdout = open(self.outfile, 'w')
+        self.stderr = open(self.errfile, 'w')
+
+    def cleanup(self):
+        self.stdout.close()
+        self.stderr.close()
+        if self.retcode == 0:
+            fh = open('%s/__success__'%self.path, 'w')
+            fh.write('%s'%self.retcode)
+            fh.close()
+        else:
+            try:
+                os.remove('%s/__success__'%self.path)
+            except:
+                pass
+
 
 def runProject(pdir, cmd, rstr, numProcs=1, skipSuccess=False):
     commands = []
@@ -21,46 +52,8 @@ def runProject(pdir, cmd, rstr, numProcs=1, skipSuccess=False):
             print 'skip path %s'%path
             continue
         command = re.sub('@path', path, cmd)
-        commands.append((command, path))
+        commands.append(ProjCmd(command, path))
     runCommands(commands, numProcs)
-
-def runCommands(commands, numProcs):
-    procs = []
-    while True:
-        #first remove processes that are finished
-        for proc, path, stdout, stderr in list(procs):
-            retcode = proc.poll()
-            if proc.poll() is not None:
-                procs.remove((proc, path, stdout, stderr))
-                stdout.close()
-                stderr.close()
-                if retcode == 0:
-                    fh = open('%s/__success__'%path, 'w')
-                    fh.write('%s'%retcode)
-                    fh.close()
-                else:
-                    try:
-                        os.remove('%s/__success__'%path)
-                    except:
-                        pass
-        #check terminate condition
-        if len(procs) == 0 and len(commands) == 0:
-            break
-        #try to launch new commands if we can
-        if len(procs) < numProcs and len(commands) != 0:
-            for i in range(len(procs), numProcs):
-                command, path = commands.pop()
-                outfile = '%s/stdout'%path
-                errfile = '%s/stderr'%path
-                print command, '1>', outfile, '2>', errfile
-                outfh = open(outfile, 'w')
-                errfh = open(errfile, 'w')
-                proc = subprocess.Popen(
-                    shlex.split(command), stdout=outfh, stderr=errfh)
-                procs.append((proc, path, outfh, errfh))
-                if len(commands) == 0:
-                    break
-        time.sleep(5)
 
 def runLoop(cmd, interval=5, timeout=sys.maxint):
     while timeout > 0:
@@ -121,13 +114,13 @@ def testRunProject():
     runProject(
         pdir,
         'python -c "import time; print time.asctime(time.localtime()); '
-        "time.sleep(10); print time.asctime(time.localtime()); print '@path'\"",
+        "time.sleep(5); print time.asctime(time.localtime()); print '@path'\"",
         '[1, 2, 3]', 2)
     print '===skip==='
     runProject(
         pdir,
         'python -c "import time; print time.asctime(time.localtime()); '
-        "time.sleep(10); print time.asctime(time.localtime()); print '@path'\"",
+        "time.sleep(5); print time.asctime(time.localtime()); print '@path'\"",
         '[0:4]', 2, True)
 
 def test():

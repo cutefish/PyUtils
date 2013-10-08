@@ -3,7 +3,6 @@ system.command
 
 System command utitlies
 """
-import os
 import getpass
 import shlex
 import subprocess
@@ -27,15 +26,24 @@ class Sudoer(object):
         self.execute('echo spam')
 
     def execute(self, command):
-        child = pexpect.spawn('sudo %s' %command)
-        index = child.expect(['.*(?i)password.*', pexpect.EOF])
-        if index == 0:
-            if self._passwd == None:
-                self._passwd = getpass.getpass("sudo password:")
-            child.sendline(self._passwd)
-        index = child.expect(['.*(?i)password.*', pexpect.EOF])
-        if index == 0:
-            raise ValueError('Wrong password')
+        try:
+            while True:
+                child = pexpect.spawn('sudo %s' %command)
+                index = child.expect(['.*(?i)password.*', pexpect.EOF])
+                if index == 0:
+                    if self._passwd == None:
+                        self._passwd = getpass.getpass("sudo password:")
+                    child.sendline(self._passwd)
+                index = child.expect(['.*(?i)password.*', pexpect.EOF])
+                if index == 0:
+                    child.close()
+                    self._passwd = None
+                    print 'Wrong password, try again.'
+                else:
+                    child.close()
+                    break
+        except KeyboardInterrupt as e:
+            print e
 
 class PeriodicalExecutor(object):
     """
@@ -49,7 +57,7 @@ class PeriodicalExecutor(object):
         try:
             while(True):
                 for command in self._commands:
-                    subprocess.call(shlex.split(command), 
+                    subprocess.call(shlex.split(command),
                                     stdout = sys.stdout, stderr = sys.stderr)
                 time.sleep(self._interval)
         except KeyboardInterrupt:

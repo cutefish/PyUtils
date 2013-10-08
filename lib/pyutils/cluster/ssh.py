@@ -5,16 +5,15 @@ ssh related utils.
 
 """
 import getpass
-import os
 import re
-import shlex
 import subprocess
 import sys
+from threading import Thread
 
-import pyutils.common.fileutils as fu
+from pyutils.common.fileutils import fileToList, normalizeName
 from pyutils.common.clirunnable import CliRunnable
-from pyutils.common.parse import CustomArgsParser
-from pyutils.common.parse import RangeStringParser
+from pyutils.common.execute import CmdObject, runCommands
+from pyutils.common.parse import CustomArgsParser, RangeStringParser
 
 class SSHArgsParser(object):
     def __init__(self, app):
@@ -57,7 +56,66 @@ class SSHArgsParser(object):
             else:
                 self.posargs.append(arg)
 
-def runSSHCmd(args):
+
+class SSHCmd(CmdObject):
+    def __init__(self, command, outBufSize, errBufSize):
+        CmdObject.__init__(self, command)
+        self.outBuf = []
+        self.errBuf = []
+        self.outBufSize = 10
+        self.errBufSize = 100
+        self.numOutLines = 0
+        self.outHandler = None
+        self.errHandler = None
+
+    def enqueueOutput(self, handler, buf, size):
+        for line in iter(handler.readline, b''):
+            buf.append(line)
+            if handler is self.outHandler:
+                self.numOutLines += 1
+            #discard head lines if exceeds limit
+            while len(buf) > size:
+                buf.pop(0)
+
+    def startup(self):
+        self.stdout = subprocess.PIPE
+        self.stderr = subprocess.PIPE
+
+    def run(self):
+        if self.outHandler is None and self.proc.stdout is not None:
+            self.outHandler = self.proc.stdout
+            thread = Thread(target=self.enqueueOutput,
+                            args=(self.outHandler, self.outBuf, self.outBufSize))
+            thread.daemon = True
+            thread.start()
+        if self.errHandler is None and self.proc.stderr is not None:
+            self.errHandler = self.proc.stderr
+            thread = Thread(target=self.enqueueOutput,
+                            args=(self.errHandler, self.errBuf, self.errBufSize))
+            thread.daemon = True
+            thread.start()
+
+    def cleanup(self):
+        try:
+            self.outHandler.close()
+            self.errHandler.close()
+        except:
+            pass
+
+    @property
+    def output(self):
+        lines = []
+        lines.append('>> %s\n'%self.command)
+        lines.append('stdout: %s\n'%self.numOutLines)
+        for line in self.outBuf:
+            lines.append(line)
+        lines.append('stderr:\n')
+        for line in self.errBuf:
+            lines.append(line)
+        lines.append('\n')
+        return lines
+
+def runSSHCmd(args, nprocs, outBufSize, errBufSize):
     #parse the args with ssh syntax
     parser = SSHArgsParser('ssh')
     parser.parse(args)
@@ -81,7 +139,8 @@ def runSSHCmd(args):
         raise SyntaxError(
             'Hosts string should be in the form hostfile:range: %s'
             'Error message: %s' %(hosts, e))
-    hosts = fu.fileToList(hostfile)
+    hosts = fileToList(hostfile)
+    sshCmds = []
     for i in r:
         try:
             host = hosts[i]
@@ -90,11 +149,10 @@ def runSSHCmd(args):
             break
         command = 'ssh %s %s@%s %s'%(' '.join(parser.options),
                                      user, host, cmd)
-        print command
-        subprocess.call(shlex.split(command),
-                        stdout=sys.stdout, stderr=sys.stderr)
+        sshCmds.append(SSHCmd(command, outBufSize, errBufSize))
+    runCommands(sshCmds, nprocs)
 
-def runSSHScatter(args):
+def runSSHScatter(args, nprocs, outBufSize, errBufSize):
     #parse the args with ssh syntax
     parser = SSHArgsParser('scp')
     parser.parse(args)
@@ -112,7 +170,10 @@ def runSSHScatter(args):
     else:
         user = getpass.getuser()
     hostfile, r, dstdir = parseAddrString(dsts)
-    hosts = fu.fileToList(hostfile)
+    hosts = fileToList(hostfile)
+    src = normalizeName(src)
+    dstdir = normalizeName(dstdir)
+    sshCmds = []
     for i in r:
         try:
             host = hosts[i]
@@ -121,11 +182,10 @@ def runSSHScatter(args):
             break
         command = 'scp %s %s %s@%s:%s'%(' '.join(parser.options),
                                         src, user, host, dstdir)
-        print command
-        subprocess.call(shlex.split(command),
-                        stdout=sys.stdout, stderr=sys.stderr)
+        sshCmds.append(SSHCmd(command, outBufSize, errBufSize))
+    runCommands(sshCmds, nprocs)
 
-def runSSHGather(args, merge=True):
+def runSSHGather(args, merge, nprocs, outBufSize, errBufSize):
     #parse the args with ssh syntax
     parser = SSHArgsParser('scp')
     parser.parse(args)
@@ -143,7 +203,10 @@ def runSSHGather(args, merge=True):
     else:
         user = getpass.getuser()
     hostfile, r, srcdir = parseAddrString(srcs)
-    hosts = fu.fileToList(hostfile)
+    hosts = fileToList(hostfile)
+    srcdir = normalizeName(srcdir)
+    dst = normalizeName(dst)
+    sshCmds = []
     for i in r:
         try:
             host = hosts[i]
@@ -156,9 +219,8 @@ def runSSHGather(args, merge=True):
             dstdir = '%s/%s'%(dst, host)
         command = 'scp %s %s@%s:%s %s'%(' '.join(parser.options),
                                         user, host, srcdir, dstdir)
-        print command
-        subprocess.call(shlex.split(command),
-                        stdout=sys.stdout, stderr=sys.stderr)
+        sshCmds.append(SSHCmd(command, outBufSize, errBufSize))
+    runCommands(sshCmds, nprocs)
 
 def parseAddrString(address):
     try:
@@ -166,7 +228,7 @@ def parseAddrString(address):
         strlist = rest.split(':')
         if not strlist[0].startswith('['):
             raise SyntaxError(
-                'Range string should be in the form ^\[[0-9,: ]+\]$: '%dsts)
+                'Range string should be in the form ^\[[0-9,: ]+\]$: '%rest)
         rind = 0
         for i, string in enumerate(strlist):
             if ']' in string:
@@ -183,8 +245,8 @@ def parseAddrString(address):
         dstdir = ''.join(strlist[rind + 1 : ])
     except Exception as e:
         raise SyntaxError(
-            'Dest string %s should be in the form hostfile:rangestr:dstdir\n'
-            'Error message: %s' %(dsts, e))
+            'Address string %s should be in the form hostfile:rangestr:dstdir\n'
+            'Error message: %s' %(address, e))
     return hostfile, r, dstdir
 
 class SSHCli(CliRunnable):
@@ -196,26 +258,53 @@ class SSHCli(CliRunnable):
         }
 
     def cmd(self, argv):
-        if (len(argv) < 2):
+        parser = CustomArgsParser(optKeys=['--np', '--outsize', '--errsize'])
+        parser.parse(argv)
+        if (len(parser.getPosArgs()) < 2):
             print
             print 'ssh cmd [<user>@]<host-file>:<range> <command> [options]'
+            print '    options:'
+            print '         --np <num procs>'
+            print '         --outsize <num stdout lines>'
+            print '         --errsize <num stderr lines>'
             sys.exit(-1)
-        runSSHCmd(argv)
+        nprocs = int(parser.getOption('--np', 4))
+        outBufSize = int(parser.getOption('--outsize', 10))
+        errBufSize = int(parser.getOption('--errsize', 50))
+        runSSHCmd(parser.getPosArgs(), nprocs, outBufSize, errBufSize)
 
     def scatter(self, argv):
-        if (len(argv) < 2):
+        parser = CustomArgsParser(optKeys=['--np', '--outsize', '--errsize'])
+        parser.parse(argv)
+        if (len(parser.getPosArgs()) < 2):
             print
             print 'ssh scatter <src> [<user>@]<host-file>:<range>:<dst> [options]'
+            print '    options:'
+            print '         --np <num procs>'
+            print '         --outsize <num stdout lines>'
+            print '         --errsize <num stderr lines>'
             sys.exit(-1)
-        runSSHScatter(argv)
+        nprocs = int(parser.getOption('--np', 4))
+        outBufSize = int(parser.getOption('--outsize', 10))
+        errBufSize = int(parser.getOption('--errsize', 50))
+        runSSHScatter(parser.getPosArgs(), nprocs, outBufSize, errBufSize)
 
     def gather(self, argv):
-        parser = CustomArgsParser(optFlags=['--no-merge'])
+        parser = CustomArgsParser(optKeys=['--np', '--outsize', '--errsize'],
+                                  optFlags=['--no-merge'])
         parser.parse(argv)
         if (len(parser.getPosArgs()) < 2):
             print
             print 'ssh gather [<user>@]<host-file>:<range>:<src> <dst>'
-            print '    [--no-merge] [options]'
+            print '    options:'
+            print '         --np <num procs>'
+            print '         --outsize <num stdout lines>'
+            print '         --errsize <num stderr lines>'
+            print '         --no-merge'
             sys.exit(-1)
-        nomerge = parser.getOption('--no-merge', True)
-        runSSHGather(parser.getPosArgs(), not nomerge)
+        nomerge = bool(parser.getOption('--no-merge', True))
+        nprocs = int(parser.getOption('--np', 4))
+        outBufSize = int(parser.getOption('--outsize', 10))
+        errBufSize = int(parser.getOption('--errsize', 50))
+        runSSHGather(parser.getPosArgs(), not nomerge,
+                     nprocs, outBufSize, errBufSize)
