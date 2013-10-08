@@ -14,7 +14,8 @@ from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.parse import CustomArgsParser
 
 def normalizeName(fileName):
-    return os.path.abspath(os.path.expanduser(fileName))
+    path = os.path.abspath(os.path.expanduser(fileName))
+    return re.sub('//', '/', path)
 
 def fileToList(fileName, include='.*', exclude='#'):
     f = open(normalizeName(fileName))
@@ -34,7 +35,7 @@ def listToFile(fileName, ls):
         f.write(str(l) + '\n')
     f.close()
 
-def listFiles(rootDir, topdown=True, onerror=None, 
+def listFiles(rootDir, topdown=True, onerror=None,
               followlinks=False, filterstring=None):
     fileList = []
     sizeList = []
@@ -45,19 +46,13 @@ def listFiles(rootDir, topdown=True, onerror=None,
     for root, subFolders, files in os.walk(
         rootDir, topdown, onerror, followlinks):
         for f in files:
-            try:
-                f = os.path.abspath(os.path.join(root, f))
-                if filterRe.search(f):
-                    fileList.append(f)
-                    sizeList.append(os.path.getsize(f))
-            except Exception as e:
-                if (ignoreError):
-                    continue
-                else:
-                    raise e
+            f = os.path.abspath(os.path.join(root, f))
+            if filterRe.search(f):
+                fileList.append(f)
+                sizeList.append(os.path.getsize(f))
     return fileList, sizeList
 
-def iterFiles(rootDir, topdown=True, onerror=None, 
+def iterFiles(rootDir, topdown=True, onerror=None,
               followlinks=False, filterstring=None):
     if filterstring == None:
         filterRe = re.compile('.*')
@@ -66,15 +61,9 @@ def iterFiles(rootDir, topdown=True, onerror=None,
     for root, subFolders, files in os.walk(
         rootDir, topdown, onerror, followlinks):
         for f in files:
-            try:
-                f = os.path.abspath(os.path.join(root, f))
-                if filterRe.search(f):
-                    yield f, os.path.getsize(f)
-            except Exception as e:
-                if (ignoreError):
-                    continue
-                else:
-                    raise e
+            f = os.path.abspath(os.path.join(root, f))
+            if filterRe.search(f):
+                yield f, os.path.getsize(f)
 
 def replace(inPath, outPath, pattern, replace, maxNumReplace=0):
     """Replace a pattern in file and return the number replaced
@@ -131,7 +120,7 @@ def catFiles(rootDir, filterString='.*', out=sys.stdout):
             out.write('\n')
             out.write('#'*36 + '  END  ' + '#'*37 + '\n');
             fd.close()
-            
+
 def renameFiles(rootDir, pattern, repl, verbose):
     for old in os.listdir(rootDir):
         if re.search(pattern, old):
@@ -171,7 +160,7 @@ class FUCli(CliRunnable):
 
     def rename(self, argv):
         if len(argv) < 2:
-            print 
+            print
             print "fileutils rename [-v] <pattern> <repl> [root]"
             sys.exit(-1)
         argsparser = CustomArgsParser(optFlags=['-v'])
