@@ -1,10 +1,12 @@
 import errno
 import os
 import re
+import shutil
 import sys
 
 from pyutils.common.clirunnable import CliRunnable
-from pyutils.common.parse import CustomArgsParser
+from pyutils.common.fileutils import normalizeName
+from pyutils.common.parse import CustomArgsParser, RangeStringParser
 
 class FileGen(object):
     KEYWORDS = ['#outdir', '#params', '#file']
@@ -247,6 +249,32 @@ class FileGen(object):
             string = string[string.index('@') + 1:]
         return ret
 
+def removeFiles(string):
+    #generate remove list
+    names = []
+    rmatch = re.search(RangeStringParser.REGEX, string)
+    if rmatch is None:
+        names.append(string)
+    else:
+        rangestr = rmatch.group()
+        matches = RangeStringParser().parse(rangestr)
+        for m in matches:
+            name = re.sub(RangeStringParser.REGEX, str(m), string, count=1)
+            if re.search(RangeStringParser.REGEX, name):
+                raise ValueError(
+                    'Unknown pattern: %s has more than one range string'%string)
+            names.append(name)
+    #remove
+    for name in names:
+        name = normalizeName(name)
+        try:
+            shutil.rmtree(name)
+        except:
+            try:
+                os.remove(name)
+            except:
+                print 'Failed to remove: %s'%name
+
 class FileGenCli(CliRunnable):
 
     def __init__(self):
@@ -254,6 +282,7 @@ class FileGenCli(CliRunnable):
             'example': 'show an example of config file',
             'keywords': 'show a list of keywords',
             'generate': 'generate from config file',
+            'remove': 'remove files of within a range',
         }
 
     def example(self, argv):
@@ -277,7 +306,7 @@ class FileGenCli(CliRunnable):
         print FileGen.ID_KEY
 
     def generate(self, argv):
-        if (len(argv) < 1 or len(argv) > 2):
+        if (len(argv) < 1) or (len(argv) > 2):
             print
             print 'generate <config file> [start]'
             sys.exit(-1)
@@ -285,6 +314,13 @@ class FileGenCli(CliRunnable):
             FileGen().generate(argv[0])
         else:
             FileGen().generate(argv[0], int(argv[1]))
+
+    def remove(self, argv):
+        if len(argv) != 1:
+            print
+            print 'remove <path with range string %s>'%RangeStringParser.REGEX
+            sys.exit(-1)
+        removeFiles(argv[0])
 
 ###### TEST #####
 def test():

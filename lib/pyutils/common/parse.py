@@ -154,15 +154,17 @@ def str2bytes(string):
     return num * factor
 
 class RangeStringParser(object):
+    REGEX = '\[[0-9,: ]+\]'
     def __init__(self):
         pass
 
     def parse(self, string):
         """Example string: [1, 3:6, 9]."""
         ret = []
-        if not re.match('^\[[0-9,: ]+\]$', string):
+        if not re.match('^%s$'%RangeStringParser.REGEX, string):
             raise SyntaxError(
-                'Range string must in the form ^\[[0-9,: ]+\]$: %s'%string)
+                'Range string must in the form %s: %s'
+                %(string, RangeStringParser.REGEX))
         string = string.strip('[]')
         for n in string.split(','):
             if ':' not in n:
@@ -193,7 +195,7 @@ class ParseCli(CliRunnable):
 def testRangeStringParser():
     parser = RangeStringParser()
     print parser.parse('[1,2,3]')
-    print parser.parse('[1, 2:4, 5:9:2, 11]')
+    print parser.parse('[1, 2:4, 5:2:9, 11]')
 
 def test():
     testRangeStringParser()
