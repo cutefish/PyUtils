@@ -1,8 +1,6 @@
 """
 
-common.netutils.py
-
-common network operations
+system network utilities
 
 """
 
@@ -16,7 +14,7 @@ if os.name != "nt":
     def getInterfaceIp(ifname):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         return socket.inet_ntoa(
-            fcntl.ioctl(s.fileno(), 0x8915, 
+            fcntl.ioctl(s.fileno(), 0x8915,
                         struct.pack('256s', ifname[:15]))[20:24])
 
 def getLocalIpAddress():
