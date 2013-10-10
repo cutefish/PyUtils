@@ -275,14 +275,50 @@ def removeFiles(string):
             except:
                 print 'Failed to remove: %s'%name
 
-class FileGenCli(CliRunnable):
+def listFiles(path):
+    dirs = os.listdir(path)
+    gendirs = []
+    for d in dirs:
+        try:
+            gendirs.append(int(d))
+        except:
+            pass
+    gendirs = sorted(gendirs)
+    liststrs = []
+    tmp = []
+    step = 0
+    for d in gendirs:
+        if len(tmp) == 0:
+            tmp.append(d)
+        elif len(tmp) == 1:
+            tmp.append(d)
+            step = d - tmp[0]
+        elif step == d - tmp[1]:
+            tmp[1] = d
+        else:
+            _stringifyTmp(tmp, step, liststrs)
+            tmp = [d]
+            step = 0
+    _stringifyTmp(tmp, step, liststrs)
+    print '[%s]'%(', '.join(liststrs))
 
+def _stringifyTmp(tmp, step, liststrs):
+    if tmp[1] - tmp[0] == step:
+        liststrs.append(str(tmp[0]))
+        liststrs.append(str(tmp[1]))
+    elif step == 1:
+        liststrs.append('%s:%s'%(tmp[0], tmp[1] + step))
+    else:
+        liststrs.append('%s:%s:%s'%(tmp[0], step, tmp[1] + step))
+
+class FileGenCli(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'example': 'show an example of config file',
             'keywords': 'show a list of keywords',
             'generate': 'generate from config file',
             'remove': 'remove files of within a range',
+            'ls': 'list range directories in succinct form',
         }
 
     def example(self, argv):
@@ -321,6 +357,16 @@ class FileGenCli(CliRunnable):
             print 'remove <path with range string %s>'%RangeStringParser.REGEX
             sys.exit(-1)
         removeFiles(argv[0])
+
+    def ls(self, argv):
+        if len(argv) > 1:
+            print
+            print 'ls [path]'
+            sys.exit(-1)
+        if len(argv) == 0:
+            listFiles(normalizeName(os.curdir))
+        else:
+            listFiles(normalizeName(argv[0]))
 
 ###### TEST #####
 def test():
