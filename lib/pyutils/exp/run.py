@@ -58,10 +58,12 @@ def runProject(pdir, cmd, rstr, numProcs=1, skipSuccess=False):
 def runLoop(cmd, interval=5, timeout=sys.maxint):
     while timeout > 0:
         try:
+            print cmd
             subprocess.call(
                 shlex.split(cmd), stdout=sys.stdout, stderr=sys.stderr)
             time.sleep(interval)
             timeout -= interval
+            print
         except KeyboardInterrupt:
             print '\nKeyboardInterrupt'
             break
