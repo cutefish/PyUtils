@@ -6,7 +6,7 @@ import sys
 
 from pyutils.common.clirunnable import CliRunnable
 from pyutils.common.fileutils import normalizeName
-from pyutils.common.parse import CustomArgsParser, RangeStringParser
+from pyutils.common.parse import RangeStringParser
 
 class FileGen(object):
     KEYWORDS = ['#outdir', '#params', '#file']
@@ -249,21 +249,9 @@ class FileGen(object):
             string = string[string.index('@') + 1:]
         return ret
 
-def removeFiles(string):
+def removeFiles(path):
     #generate remove list
-    names = []
-    rmatch = re.search(RangeStringParser.REGEX, string)
-    if rmatch is None:
-        names.append(string)
-    else:
-        rangestr = rmatch.group()
-        matches = RangeStringParser().parse(rangestr)
-        for m in matches:
-            name = re.sub(RangeStringParser.REGEX, str(m), string, count=1)
-            if re.search(RangeStringParser.REGEX, name):
-                raise ValueError(
-                    'Unknown pattern: %s has more than one range string'%string)
-            names.append(name)
+    names = _getRangPathList(path)
     #remove
     for name in names:
         name = normalizeName(name)
@@ -296,13 +284,49 @@ def listFiles(path):
         elif step == d - tmp[1]:
             tmp[1] = d
         else:
-            _stringifyTmp(tmp, step, liststrs)
+            _appendRangeList(tmp, step, liststrs)
             tmp = [d]
             step = 0
-    _stringifyTmp(tmp, step, liststrs)
+    _appendRangeList(tmp, step, liststrs)
     print '[%s]'%(', '.join(liststrs))
 
-def _stringifyTmp(tmp, step, liststrs):
+def moveFiles(srcpath, dstpath):
+    #generate move list
+    srcs = _getRangPathList(srcpath)
+    #set up dst path
+    dstpath = normalizeName(dstpath)
+    if os.path.exists(dstpath):
+        if os.path.isfile(dstpath):
+            raise ValueError('%s is a file'%dstpath)
+    else:
+        os.mkdir(dstpath)
+    #move
+    for src in srcs:
+        src = normalizeName(src)
+        try:
+            shutil.move(src, dstpath)
+        except:
+            print 'Failed to move %s to %s'%(src, dstpath)
+
+def _getRangPathList(path):
+    names = []
+    rmatch = re.search(RangeStringParser.REGEX, path)
+    if rmatch is None:
+        names.append(path)
+    else:
+        rangestr = rmatch.group()
+        matches = RangeStringParser().parse(rangestr)
+        for m in matches:
+            name = re.sub(RangeStringParser.REGEX, str(m), path, count=1)
+            if re.search(RangeStringParser.REGEX, name):
+                raise ValueError(
+                    'Unknown pattern: %s has more than one range string'%path)
+            names.append(name)
+    return names
+
+def _appendRangeList(tmp, step, liststrs):
+    if len(tmp) == 0:
+        return
     if tmp[1] - tmp[0] == step:
         liststrs.append(str(tmp[0]))
         liststrs.append(str(tmp[1]))
@@ -317,8 +341,9 @@ class FileGenCli(CliRunnable):
             'example': 'show an example of config file',
             'keywords': 'show a list of keywords',
             'generate': 'generate from config file',
-            'remove': 'remove files of within a range',
+            'rm': 'remove files of within a range',
             'ls': 'list range directories in succinct form',
+            'mv': 'move range directories'
         }
 
     def example(self, argv):
@@ -351,10 +376,10 @@ class FileGenCli(CliRunnable):
         else:
             FileGen().generate(argv[0], int(argv[1]))
 
-    def remove(self, argv):
+    def rm(self, argv):
         if len(argv) != 1:
             print
-            print 'remove <path with range string %s>'%RangeStringParser.REGEX
+            print 'rm <path with range string %s>'%RangeStringParser.REGEX
             sys.exit(-1)
         removeFiles(argv[0])
 
@@ -367,6 +392,13 @@ class FileGenCli(CliRunnable):
             listFiles(normalizeName(os.curdir))
         else:
             listFiles(normalizeName(argv[0]))
+
+    def mv(self, argv):
+        if len(argv) != 2:
+            print
+            print 'mv <src path with range string> <dst path>'
+            sys.exit(-1)
+        moveFiles(argv[0], argv[1])
 
 ###### TEST #####
 def test():
@@ -409,6 +441,20 @@ def test():
     fh.writelines(cfgstrings)
     fh.close()
     FileGen().generate('/tmp/config')
+    listFiles('/tmp/pyutilfilegen/')
+    newdir = '/tmp/testfilegen'
+    try:
+        shutil.rmtree(newdir)
+    except:
+        try:
+            os.remove(newdir)
+        except:
+            pass
+    os.mkdir(newdir)
+    moveFiles('/tmp/pyutilfilegen/[0:10]', newdir)
+    print os.listdir(newdir)
+    removeFiles('%s/[0:10]'%newdir)
+
 
 def main():
     test()

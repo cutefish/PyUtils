@@ -6,6 +6,8 @@ Amazon EC2 Utilities.
 
 """
 
+import os
+import re
 import sys
 
 import boto.ec2
@@ -13,19 +15,20 @@ from boto.ec2.blockdevicemapping import BlockDeviceType
 from boto.ec2.blockdevicemapping import BlockDeviceMapping
 
 from pyutils.common.clirunnable import CliRunnable
+from pyutils.common.fileutils import fileToList, normalizeName
 
 class EC2Runnable(CliRunnable):
     def __init__(self):
         self.availableCommand = {
             'startCluster': 'Start a ec2 cluster',
-            'public_ips': 'print instance public IPs',
-            'private_ips': 'print instance private IPs',
             'startInstances': 'Start instances that are previously stopped',
             'stopInstances': 'Stop instances that are currently running',
             'termInstances': 'Terminate all instances',
+            'public_ips': 'print instance public IPs',
+            'private_ips': 'print instance private IPs',
+            'who': 'find out related instances',
         }
 
-    #startCluster
     def startCluster(self, argv):
         if len(argv) != 0:
             print "ec2 startCluster"
@@ -75,6 +78,54 @@ class EC2Runnable(CliRunnable):
             security_groups = [group], instance_type=instanceType,
             block_device_map=mapping, key_name=key)
 
+    def startInstances(self, argv):
+        if len(argv) != 1:
+            print "ec2 startInstances <regionName>"
+            sys.exit(-1)
+        regionName = argv[0]
+        region = boto.ec2.get_region(regionName)
+        conn = region.connect()
+        instList = self._getInstancesFromRegion(conn, state='stopped')
+        startList = conn.start_instances(instList)
+        instInfo = ', '.join(str(i) for i in startList)
+        print "start instances: " + instInfo
+
+
+    def stopInstances(self, argv):
+        if len(argv) != 1:
+            print "ec2 stopInstances <regionName>"
+            sys.exit(-1)
+        regionName = argv[0]
+        region = boto.ec2.get_region(regionName)
+        conn = region.connect()
+        instList = self._getInstancesFromRegion(conn, state='running')
+        stopList = conn.stop_instances(instList)
+        instInfo = ', '.join(str(i) for i in stopList)
+        print "stoped instances: " + instInfo
+
+    def termInstances(self, argv):
+        if len(argv) != 1:
+            print "ec2 termInstances <regionName>"
+            sys.exit(-1)
+        regionName = argv[0]
+        region = boto.ec2.get_region(regionName)
+        conn = region.connect()
+        instList = self._getInstancesFromRegion(conn)
+        termList = conn.terminate_instances(instList)
+        instInfo = ', '.join(str(i) for i in termList)
+        print "terminated instances: " + instInfo
+
+    def _getInstancesFromRegion(self, conn, state=None):
+        resv = conn.get_all_instances()
+        ret = []
+        for r in resv:
+            for i in r.instances:
+                if state == None:
+                    ret.append(i.id)
+                elif i.state == state:
+                    ret.append(i.id)
+        return ret
+
     def public_ips(self, argv):
         if len(argv) < 1:
             print "ec2 public_ips <regionName>"
@@ -103,54 +154,30 @@ class EC2Runnable(CliRunnable):
                 if privateIp != "" and privateIp is not None:
                     print privateIp
 
-    #start instances
-    def startInstances(self, argv):
-        if len(argv) != 1:
-            print "ec2 startInstances <regionName>"
+    def who(self, argv):
+        if len(argv) < 1:
+            print "ec2 who <regionName> <values or path>"
             sys.exit(-1)
         regionName = argv[0]
+        #get values
+        valuesOrPath = argv[1]
+        if os.path.isfile(normalizeName(valuesOrPath)):
+            values = fileToList(valuesOrPath)
+        else:
+            values = valuesOrPath.split(',')
+            for i in range(len(values)):
+                values[i] = values[i].strip()
+        #get ec2 instances
         region = boto.ec2.get_region(regionName)
         conn = region.connect()
-        instList = self._getInstancesFromRegion(conn, state='stopped')
-        startList = conn.start_instances(instList)
-        instInfo = ', '.join(str(i) for i in startList)
-        print "start instances: " + instInfo
-
-
-    #stop instances
-    def stopInstances(self, argv):
-        if len(argv) != 1:
-            print "ec2 stopInstances <regionName>"
-            sys.exit(-1)
-        regionName = argv[0]
-        region = boto.ec2.get_region(regionName)
-        conn = region.connect()
-        instList = self._getInstancesFromRegion(conn, state='running')
-        stopList = conn.stop_instances(instList)
-        instInfo = ', '.join(str(i) for i in stopList)
-        print "stoped instances: " + instInfo
-
-    #terminate instances
-    def termInstances(self, argv):
-        if len(argv) != 1:
-            print "ec2 termInstances <regionName>"
-            sys.exit(-1)
-        regionName = argv[0]
-        region = boto.ec2.get_region(regionName)
-        conn = region.connect()
-        instList = self._getInstancesFromRegion(conn)
-        termList = conn.terminate_instances(instList)
-        instInfo = ', '.join(str(i) for i in termList)
-        print "terminated instances: " + instInfo
-
-    def _getInstancesFromRegion(self, conn, state=None):
-        resv = conn.get_all_instances()
-        ret = []
-        for r in resv:
-            for i in r.instances:
-                if state == None:
-                    ret.append(i.id)
-                elif i.state == state:
-                    ret.append(i.id)
-        return ret
-
+        resvList = conn.get_all_instances()
+        for value in values:
+            for resv in resvList:
+                for instance in resv.instances:
+                    for key, val in instance.__dict__.iteritems():
+                        if re.search(value, str(val)):
+                            print ('value=%s: id=%s, public=%s, private=%s'
+                                   %(value, instance.id,
+                                     instance.ip_address,
+                                     instance.private_ip_address))
+                            break
