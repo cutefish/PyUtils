@@ -121,6 +121,8 @@ class FileGen(object):
             elif key.startswith('var'):
                 key = key.split('var')[1].strip()
                 val = eval(val)
+                if len(val) == 0:
+                    raise SyntaxError('var is empty, key:%s'%key)
                 varconf[key] = val
             elif key.startswith('sub'):
                 key = key.split('sub')[1].strip()
