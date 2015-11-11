@@ -1,0 +1,30 @@
+<config name="kvdeploy">
+    <property name="host.kvlib" value="/home/xiaoy/myproj/kv-cluster/lib"/>
+    <property name="container.kvlib" value="/kvlib"/>
+    <property name="script.path" value="/home/xiaoy/myproj/dkmngr/example/scripts"/>
+    <image name="server-image">
+        <proxy http="www-proxy.us.oracle.com:80"/>
+        <install packages="openjdk-7-jdk, python2.7, host"/>
+        <startup scripts="ipconfig.py, snaboot.py" paths="${script.path}"/>
+        <volume path="${container.kvlib}"/>
+    </image>
+    <image name="client-image">
+        <proxy http="www-proxy.us.oracle.com:80"/>
+        <install packages="openjdk-7-jdk, python2.7, host"/>
+        <startup scripts="ipconfig.py, deploy.py" paths="${script.path}"/>
+        <volume path="${container.kvlib}"/>
+    </image>
+    <containers name="servers" image="server-image" regex="$i" rexpr="range(1, 4)">
+        <hostname name="server$i"/>
+        <volume src="${host.kvlib}" dst="${container.kvlib}"/>
+        <env name="host.desired.ip" value="*.*.1.$i"/>
+        <env name="kv.lib" value="{container.kvlib}"/>
+    </containers>
+    <containers name="clients" image="client-image" depends="servers">
+        <hostname name="client"/>
+        <volume src="${kvlib}" dst="{container.kvlib}"/>
+        <env name="host.desired.ip" value="*.*.1.100"/>
+        <env name="kv.lib" value="{container.kvlib}"/>
+        <env name="server.hostname.pattern" value="server$i; $i; range(1, 4)"/>
+    </containers>
+</config>

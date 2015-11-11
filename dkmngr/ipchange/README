@@ -1,0 +1,70 @@
+The test sets up a 3x2 cluster with a DNS server and changes the IP addresses of
+the servers.
+
+* Requirement:
+- Docker installation and execution needs root access.
+- Docker image ubuntu:14.04 with packages (bind9, openjdk-7-jdk and host)
+  should exist on the machine or downloadable from the websites.
+- Tested with Docker 1.7
+
+
+* To install the latest Docker on ubuntu:
+
+(1) Please check the docker installation website:
+https://docs.docker.com/installation/.
+
+(2) Add user to docker group to avoid root privilege.
+sudo usermod -aG docker <user>
+
+(3) Set-up proxy and oracle dns for docker
+Add 'DOCKER_OPTS="--dns 10.209.76.198 --dns 10.209.76.197"'
+Add 'export http_proxy="http://www-proxy.us.oracle.com:80/"' in /etc/default/docker
+
+
+* To run test:
+
+(1) Modify "KV_LIB" in ./runtest.sh to point to the path containing kvstore.jar.
+(2) Modify "PROXY" as needed in ./runtest.sh for the proxy.
+(2) Run "sh run.sh".
+
+
+* To cleanup:
+
+sh cleanup.sh
+
+
+* Test details:
+
+(1) The test set up five containers running a dns server, a client and three
+kvstore servers.
+
+(2) The IP addresses are assigned as:
+dns.kv : *.*.0.100
+client.kv: *.*.0.200
+server0.kv: *.*.0.10
+server1.kv: *.*.0.11
+server2.kv: *.*.0.12
+
+(3) The entrypoint script for all the containers is entrypoint.py
+
+(4) The kvstore servers run makebootconfig and start SNA upon start. The client
+deploys a 3x2 cluster and runs a small test script including get/put key value
+and create/drop a table. Subsequently, we flip the IP address of each server
+from *.*.0.* to *.*.1.* and changed the mapping in dns server accordingly. Run
+the test script again to see if there is any error.
+
+(5) Client test script:
+connect store -name "mystore"
+verify configuration
+put kv -key /name -value xiao
+get kv -key /name
+aggregate kv -count
+execute "DROP TABLE mytable"
+execute "CREATE TABLE mytable (
+    item STRING,
+    description STRING,
+    count INTEGER,
+    percentage DOUBLE,
+    PRIMARY KEY (item))
+aggregate table -name mytable -count
+execute "SHOW TABLES"
