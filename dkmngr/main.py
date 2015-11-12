@@ -1,23 +1,18 @@
 import sys
 
-from configure import Configure, ImageTarget
+from helper import ExecConfHelper
+from execution import Execution
 
 
 def main():
     src = sys.argv[1]
     cfg_file = '{0}/config.xml'.format(src)
-    config = Configure()
-    config.read(cfg_file)
-    print 'properties', config.properties
-    for t in config.targets:
-        lst = []
-        for p, d in t.attrs.iteritems():
-            lst.append(
-                '{0} : {{{1}}}'.
-                format(p, ','.
-                       join(['{0}:{1}'.
-                             format(k, str(v)) for k, v in d.iteritems()])))
-        print ','.join(lst)
+    execution = Execution()
+    helper = ExecConfHelper()
+    helper.build(execution, cfg_file)
+    for task in execution.tasks:
+        print task
+
 
 
 if __name__ == '__main__':
