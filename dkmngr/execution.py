@@ -1,5 +1,8 @@
 import logging
+import os
+import shutil
 
+from utils import get_pretty_lines
 
 class Execution(object):
     def __init__(self):
@@ -17,8 +20,14 @@ class Execution(object):
     def set_name(self, name):
         self.name = name
 
+    def get_name(self):
+        return self.name
+
     def set_tmpdir(self, tmpdir):
         self.tmpdir = tmpdir
+
+    def get_tmpdir(self):
+        return self.tmpdir
 
     def add_task(self, task):
         name = task.get_name()
@@ -38,6 +47,8 @@ class Execution(object):
             self.ready.append(task)
 
     def run(self):
+        shutil.rmtree(self.tmpdir)
+        os.makedirs(self.tmpdir)
         while not self.stopped:
             task = self.ready.pop(0)
             self.logger.info('\n{0}:'.format(task.get_name()))
@@ -45,9 +56,9 @@ class Execution(object):
             self.done_task(task)
 
     def done_task(self, task):
-        for msg in task.get_out_msgs():
+        for msg in get_pretty_lines(task.get_out_msgs()):
             self.logger.info('\t[out]: {0}'.format(msg))
-        for msg in task.get_out_msgs():
+        for msg in get_pretty_lines(task.get_out_msgs()):
             self.logger.info('\t[err]: {0}'.format(msg))
         if task.is_failed():
             task.fail_action.do()

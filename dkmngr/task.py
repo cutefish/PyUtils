@@ -1,8 +1,10 @@
 import logging
 import os
+import subprocess
 import traceback
 
 from execution import StopExecutionAction
+from docker import DockerBuild, DockerRun
 
 class Task(object):
     QUEUED, RUNNING, SUCCEEDED, FAILED = range(4)
@@ -88,7 +90,7 @@ class ImageBuildTask(Task):
         self.copy_files = []
         self.volume_lines = []
         self.startup_dir = '/startup/'
-        self.startup_script = '{0}dkimg_startup.sh'.format(self.startup_dir)
+        self.startup_script = 'dkimg_startup.sh'
         self.startup_script_lines = []
         self.mkdir_lines = ['RUN mkdir {0}'.format(self.startup_dir)]
         self.copy_lines = []
@@ -118,7 +120,8 @@ class ImageBuildTask(Task):
                 '{0}/{1}'. format(self.startup_dir, script))
         self.startup_script_lines.append('sleep {0}'.format(24 * 3600))
         self.startup_lines.append(
-            'ENTRYPOINT ["sh", "{0}"]'. format(self.startup_script))
+            'ENTRYPOINT ["sh", "{0}{1}"]'. format(self.startup_dir,
+                                                  self.startup_script))
 
     def copy_to_startupdir(self, paths):
         for path in paths:
@@ -139,6 +142,23 @@ class ImageBuildTask(Task):
         path = os.path.basename(src.rstrip('/'))
         self.copy_lines.append('COPY {0} {1}'.format(path, dst))
 
+    def get_tmpdir(self):
+        return '{0}/image-{1}'.format(self.execution.get_tmpdir(),
+                                      self.get_name())
+
+    def run_internal(self):
+        os.makedirs(self.get_tmpdir())
+        self.generate_dockerfile()
+        self.gather_image_files()
+        self.generate_startup_file()
+        self.build_image()
+
+    def generate_dockerfile(self):
+        self.log(logging.INFO, 'Generate docker file.')
+        lines = self.get_dockerfile_lines()
+        with open('{0}/Dockerfile', 'w') as writer:
+            writer.writelines(lines)
+
     def get_dockerfile_lines(self):
         lines = []
         lines.extend(self.from_lines)
@@ -150,24 +170,42 @@ class ImageBuildTask(Task):
         lines.extend(self.startup_lines)
         return lines
 
-    def run_internal(self):
-        strings = ['-----']
-        strings.append('name:{0}'.format(self.name))
-        strings.extend(self.get_dockerfile_lines())
-        for string in strings:
-            self.log(logging.INFO, string)
+    def gather_image_files(self):
+        self.log(logging.INFO, 'Gather image files.')
+        for path in self.copy_files:
+            shutil.copy(path, self.get_tmpdir())
+
+    def generate_startup_file(self):
+        self.log(logging.INFO, 'Generate startup script.')
+        with open('{0}/{1}'.format(self.get_tmpdir(),
+                                   self.startup_script),
+                  'w') as writer:
+            writer.writelines(self.startup_script_lines)
+
+    def build_image(self):
+        self.log(logging.INFO, 'Build image.')
+        docker_build = DockerBuild.tag(self.get_name())
+        stdout, stderr, retcode = docker_build.run(self.get_tmpdir())
+        self.out_msgs.extend(stdout.split('\n'))
+        self.err_msgs.extend(stderr.split('\n'))
+        if retcode != 0:
+            raise ValueError('Docker build faild: {0} {1}'.
+                             format(self.get_tmpdir()))
 
 
 class ContainersRunTask(Task):
     def __init__(self, execution):
         super(ContainersRunTask, self).__init__(execution)
         self.log_prefix = 'containers'
-        self.range_regex = None
-        self.range_vals = None
+        self.range_regex = ''
+        self.range_vals = ['']
         self.image = None
-        self.hostname_pattern = None
-        self.volume_args = []
-        self.env_args = []
+        self.name_pattern = None
+        self.volumes = []
+        self.envs = []
+        self.ip_addresses = []
+        self.mac_addresses = []
+        self.dns_address = None
 
     def set_range_regex(self, regex):
         self.range_regex = regex
@@ -179,21 +217,28 @@ class ContainersRunTask(Task):
         self.image = image
         self.set_depnames([image])
 
-    def set_hostname_pattern(self, pattern):
-        self.hostname_pattern = pattern
+    def set_name_pattern(self, pattern):
+        self.name_pattern = pattern
 
     def add_volume_mapping(self, src, dst):
-        self.volume_args.append('-v {0}:{1}:ro'.format(src, dst))
+        self.volumes.append('{0}:{1}:ro'.format(src, dst))
 
     def add_env(self, name, value):
-        self.env_args.append('-e "{0}={1}"'.format(name, value))
+        self.envs.append('"{0}={1}"'.format(name, value))
 
     def run_internal(self):
-        strings = ['-----']
-        strings.append('regex:{0}'.format(self.range_regex))
-        strings.append('vals:{0}'.format(self.range_vals))
-        strings.append('hostname:{0}'.format(self.hostname_pattern))
-        strings.append('volumes:{0}'.format(self.volume_args))
-        strings.append('envs:{0}'.format(self.env_args))
-        for string in strings:
-            self.log(logging.INFO, string)
+        for i, val in enumerate(self.range_vals):
+            name = re.sub(self.range_regex, str(val), self.name_pattern)
+            tmpdir = ('{0}/containers-{1}'.
+                      format(self.execution.get_tmpdir(),
+                             name))
+            os.makedirs(tmpdir)
+            docker_run = DockerRun()
+            self.log(logging.INFO, 'Starting container: {0}'.format(name))
+            stdout, stderr, retcode = docker_run.detach().hostname(name).\
+                add_cap('NET_ADMIN').add_cap('SYS_ADMIN').\
+                mac(self.mac_addresses[i]).dns(self.dns_address).\
+                volumes(self.volumes).envs(self.envs).\
+                name(name).run(self.image)
+            if retcode != 0:
+                raise ValueError('Docker run faild: {0}'.format(name))

@@ -5,7 +5,6 @@ import sys
 from helper import ExecConfHelper
 from execution import Execution
 
-
 def main():
     logging_config()
     src = sys.argv[1]
@@ -14,6 +13,7 @@ def main():
     helper = ExecConfHelper()
     helper.build(execution, cfg_file)
     execution.run()
+
 
 def logging_config():
     cfg_dict = dict(

@@ -18,13 +18,13 @@
     </image>
     <containers name="servers" image="server-image">
         <range var="i" expr="range(1, 4)"/>
-        <hostname name="server$i"/>
+        <name pattern="server$i"/>
         <volume src="${host.kvlib}" dst="${container.kvlib}"/>
         <env name="host.desired.ip" value="*.*.1.$i"/>
         <env name="kv.lib" value="${container.kvlib}"/>
     </containers>
     <containers name="clients" image="client-image" depends="servers">
-        <hostname name="client"/>
+        <name pattern="client"/>
         <volume src="${kvlib}" dst="${container.kvlib}"/>
         <env name="host.desired.ip" value="*.*.1.100"/>
         <env name="kv.lib" value="${container.kvlib}"/>

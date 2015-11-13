@@ -195,9 +195,9 @@ class ContainersHandler(TaskElemHandler):
                 self.range_attr.read_elem(elem)
                 ctn_task.set_range_regex('\${0}'.format(self.range_attr['var']))
                 ctn_task.set_range_vals(eval(self.range_attr['expr']))
-            elif elem.tag == 'hostname':
+            elif elem.tag == 'name':
                 self.host_attr.read_elem(elem)
-                ctn_task.set_hostname_pattern(self.host_attr['name'])
+                ctn_task.set_name_pattern(self.host_attr['pattern'])
             elif elem.tag == 'volume':
                 self.volume_attr.read_elem(elem)
                 ctn_task.add_volume_mapping(self.volume_attr['src'],

@@ -8,7 +8,7 @@
         <volume paths="${container.kvlib}"/>
     </image>
     <containers name="clients" image="client-image" depends="servers">
-        <hostname name="client"/>
+        <name pattern="client"/>
         <volume src="${kvlib}" dst="${container.kvlib}"/>
         <env name="host.desired.ip" value="*.*.1.100"/>
         <env name="kv.lib" value="${container.kvlib}"/>
