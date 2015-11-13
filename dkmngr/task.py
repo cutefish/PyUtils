@@ -1,22 +1,87 @@
+import logging
 import os
-import re
+import traceback
+
+from execution import StopExecutionAction
 
 class Task(object):
+    QUEUED, RUNNING, SUCCEEDED, FAILED = range(4)
     def __init__(self, execution):
         self.execution = execution
         self.name = None
-        self.depends = []
+        self.depnames = []
+        self.depends = set([])
+        self.fail_action = StopExecutionAction(self)
+        self.logger = logging.getLogger('task')
+        self.log_prefix = ''
+        self.status = Task.QUEUED
+        self.out_msgs = []
+        self.err_msgs = []
 
     def set_name(self, name):
         self.name = name
 
-    def set_depends(self, depends):
-        self.depends.extend(depends)
+    def set_tasktype(self, tasktype):
+        self.tasktype = tasktype
+
+    def set_depnames(self, depnames):
+        self.depnames.extend(depnames)
+
+    def add_depend(self, task):
+        self.depends.add(task)
+
+    def get_depends(self):
+        return self.depends
+
+    def get_name(self):
+        return self.name
+
+    def get_out_msgs(self):
+        return self.out_msgs
+
+    def get_err_msgs(self):
+        return self.err_msgs
+
+    def is_failed(self):
+        return self.status == Task.FAILED
+
+    def is_succeeded(self):
+        return self.status == Task.SUCC
+
+    def is_done(self):
+        return self.status > Task.RUNNING
+
+    def run(self):
+        try:
+            self.status = Task.RUNNING
+            self.run_internal()
+            self.status = Task.SUCCEEDED
+        except Exception as e:
+            self.err_msgs.append(traceback.format_exc())
+            self.status = Task.FAILED
+
+    def run_internal(self):
+        raise NotImplementedError()
+
+    def log(self, lvl, msg, prefix=None):
+        if prefix is None:
+            prefix = self.log_prefix
+        self.logger.log(lvl, msg, extra={
+            'log_prefix' : prefix,
+        })
+
+
+    def __str__(self):
+        return '[{0}({1})]'.format(
+            self.get_name(),
+            ','.join([d.get_name() for d in self.get_depends()])
+        )
 
 
 class ImageBuildTask(Task):
     def __init__(self, execution):
         super(ImageBuildTask, self).__init__(execution)
+        self.log_prefix = 'image'
         self.from_lines = ['FROM ubuntu:14.04']
         self.proxy_lines = []
         self.install_lines = []
@@ -85,16 +150,18 @@ class ImageBuildTask(Task):
         lines.extend(self.startup_lines)
         return lines
 
-    def __str__(self):
-        strings = ['\n-----']
+    def run_internal(self):
+        strings = ['-----']
         strings.append('name:{0}'.format(self.name))
         strings.extend(self.get_dockerfile_lines())
-        return '\n'.join(strings)
+        for string in strings:
+            self.log(logging.INFO, string)
 
 
 class ContainersRunTask(Task):
     def __init__(self, execution):
         super(ContainersRunTask, self).__init__(execution)
+        self.log_prefix = 'containers'
         self.range_regex = None
         self.range_vals = None
         self.image = None
@@ -110,6 +177,7 @@ class ContainersRunTask(Task):
 
     def set_image(self, image):
         self.image = image
+        self.set_depnames([image])
 
     def set_hostname_pattern(self, pattern):
         self.hostname_pattern = pattern
@@ -120,11 +188,12 @@ class ContainersRunTask(Task):
     def add_env(self, name, value):
         self.env_args.append('-e "{0}={1}"'.format(name, value))
 
-    def __str__(self):
-        strings = ['\n-----']
+    def run_internal(self):
+        strings = ['-----']
         strings.append('regex:{0}'.format(self.range_regex))
         strings.append('vals:{0}'.format(self.range_vals))
         strings.append('hostname:{0}'.format(self.hostname_pattern))
         strings.append('volumes:{0}'.format(self.volume_args))
         strings.append('envs:{0}'.format(self.env_args))
-        return '\n'.join(strings)
+        for string in strings:
+            self.log(logging.INFO, string)

@@ -12,6 +12,7 @@ class Attribs(dict):
         self.properties = properties
         self.required = {}
         self.optional = {}
+        self.add_optional('description')
 
     def add_required(self, key, valfunc=str):
         self.required[key] = valfunc
@@ -107,7 +108,7 @@ class TaskElemHandler(object):
     def handle(self, root, task):
         self.attribs.read_elem(root)
         task.set_name(self.attribs['name'])
-        task.set_depends(self.attribs['depends'])
+        task.set_depnames(self.attribs['depends'])
 
 
 class ImageHandler(TaskElemHandler):
@@ -208,3 +209,7 @@ class ContainersHandler(TaskElemHandler):
                 raise SyntaxError('Unknown tag {0} containers task'.
                                   format(elem.tag))
 
+
+class ExecDnsHelper(object):
+    def setup_dns(self, execution):
+        pass

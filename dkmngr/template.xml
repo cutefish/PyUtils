@@ -1,0 +1,17 @@
+
+<execution name="required">
+    <property name="name" value="value"/>
+    <image name="server-image">
+        <proxy http="www-proxy.us.oracle.com:80"/>
+        <install packages="openjdk-7-jdk, python2.7, host"/>
+        <startup scripts="ipconfig.py, snaboot.py" paths="${script.path}"/>
+        <volume paths="${container.kvlib}"/>
+    </image>
+    <containers name="clients" image="client-image" depends="servers">
+        <hostname name="client"/>
+        <volume src="${kvlib}" dst="${container.kvlib}"/>
+        <env name="host.desired.ip" value="*.*.1.100"/>
+        <env name="kv.lib" value="${container.kvlib}"/>
+        <env name="server.hostname.pattern" value="server$i; $i; range(1, 4)"/>
+    </containers>
+</execution>
