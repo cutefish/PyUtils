@@ -178,8 +178,8 @@ class ContainersHandler(TaskElemHandler):
         self.range_attr = Attribs(properties)
         self.range_attr.add_required('var')
         self.range_attr.add_required('expr')
-        self.host_attr = Attribs(properties)
-        self.host_attr.add_required('name')
+        self.name_attr = Attribs(properties)
+        self.name_attr.add_required('pattern')
         self.volume_attr = Attribs(properties)
         self.volume_attr.add_required('src', Attribs.str2path)
         self.volume_attr.add_required('dst', Attribs.str2path)
@@ -196,8 +196,8 @@ class ContainersHandler(TaskElemHandler):
                 ctn_task.set_range_regex('\${0}'.format(self.range_attr['var']))
                 ctn_task.set_range_vals(eval(self.range_attr['expr']))
             elif elem.tag == 'name':
-                self.host_attr.read_elem(elem)
-                ctn_task.set_name_pattern(self.host_attr['pattern'])
+                self.name_attr.read_elem(elem)
+                ctn_task.set_name_pattern(self.name_attr['pattern'])
             elif elem.tag == 'volume':
                 self.volume_attr.read_elem(elem)
                 ctn_task.add_volume_mapping(self.volume_attr['src'],

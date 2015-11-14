@@ -1,6 +1,6 @@
 import logging
 import os
-import subprocess
+import shutil
 import traceback
 
 from execution import StopExecutionAction
@@ -59,7 +59,7 @@ class Task(object):
             self.run_internal()
             self.status = Task.SUCCEEDED
         except Exception as e:
-            self.err_msgs.append(traceback.format_exc())
+            self.err_msgs.extend(traceback.format_exc().split('\n'))
             self.status = Task.FAILED
 
     def run_internal(self):
@@ -137,13 +137,15 @@ class ImageBuildTask(Task):
             self.mkdir_lines = ['RUN mkdir -p {0}'.format(os.path.dirname(path))]
 
     def copy(self, src, dst):
+        if not os.path.exists(src):
+            raise OSError('Path does not exist: {0}'.format(src))
         self.mkdir_lines.append('RUN mkdir -p {0}'.format(dst))
         self.copy_files.append(src)
         path = os.path.basename(src.rstrip('/'))
         self.copy_lines.append('COPY {0} {1}'.format(path, dst))
 
     def get_tmpdir(self):
-        return '{0}/image-{1}'.format(self.execution.get_tmpdir(),
+        return '{0}/image/{1}'.format(self.execution.get_tmpdir(),
                                       self.get_name())
 
     def run_internal(self):
@@ -156,7 +158,7 @@ class ImageBuildTask(Task):
     def generate_dockerfile(self):
         self.log(logging.INFO, 'Generate docker file.')
         lines = self.get_dockerfile_lines()
-        with open('{0}/Dockerfile', 'w') as writer:
+        with open('{0}/Dockerfile'.format(self.get_tmpdir()), 'w') as writer:
             writer.writelines(lines)
 
     def get_dockerfile_lines(self):
@@ -184,12 +186,13 @@ class ImageBuildTask(Task):
 
     def build_image(self):
         self.log(logging.INFO, 'Build image.')
-        docker_build = DockerBuild.tag(self.get_name())
-        stdout, stderr, retcode = docker_build.run(self.get_tmpdir())
-        self.out_msgs.extend(stdout.split('\n'))
-        self.err_msgs.extend(stderr.split('\n'))
+        docker_build = DockerBuild()
+        docker_build.tag(self.get_name())
+        retcode = docker_build.run(self.get_tmpdir(),
+                                   self.out_msgs,
+                                   self.err_msgs)
         if retcode != 0:
-            raise ValueError('Docker build faild: {0} {1}'.
+            raise ValueError('Docker build faild: {0}'.
                              format(self.get_tmpdir()))
 
 
@@ -229,16 +232,16 @@ class ContainersRunTask(Task):
     def run_internal(self):
         for i, val in enumerate(self.range_vals):
             name = re.sub(self.range_regex, str(val), self.name_pattern)
-            tmpdir = ('{0}/containers-{1}'.
+            tmpdir = ('{0}/containers/{1}'.
                       format(self.execution.get_tmpdir(),
                              name))
             os.makedirs(tmpdir)
             docker_run = DockerRun()
             self.log(logging.INFO, 'Starting container: {0}'.format(name))
-            stdout, stderr, retcode = docker_run.detach().hostname(name).\
+            retcode = docker_run.detach().hostname(name).\
                 add_cap('NET_ADMIN').add_cap('SYS_ADMIN').\
                 mac(self.mac_addresses[i]).dns(self.dns_address).\
                 volumes(self.volumes).envs(self.envs).\
-                name(name).run(self.image)
+                name(name).run(self.image, self.out_msgs, self.err_msgs)
             if retcode != 0:
                 raise ValueError('Docker run faild: {0}'.format(name))

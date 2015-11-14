@@ -27,7 +27,9 @@ class Execution(object):
         self.tmpdir = tmpdir
 
     def get_tmpdir(self):
-        return self.tmpdir
+        if self.tmpdir is not None:
+            return self.tmpdir
+        return '/tmp/{0}'.format(self.name)
 
     def add_task(self, task):
         name = task.get_name()
@@ -47,8 +49,8 @@ class Execution(object):
             self.ready.append(task)
 
     def run(self):
-        shutil.rmtree(self.tmpdir)
-        os.makedirs(self.tmpdir)
+        shutil.rmtree(self.get_tmpdir(), ignore_errors=True)
+        os.makedirs(self.get_tmpdir())
         while not self.stopped:
             task = self.ready.pop(0)
             self.logger.info('\n{0}:'.format(task.get_name()))
@@ -58,7 +60,7 @@ class Execution(object):
     def done_task(self, task):
         for msg in get_pretty_lines(task.get_out_msgs()):
             self.logger.info('\t[out]: {0}'.format(msg))
-        for msg in get_pretty_lines(task.get_out_msgs()):
+        for msg in get_pretty_lines(task.get_err_msgs(), 50):
             self.logger.info('\t[err]: {0}'.format(msg))
         if task.is_failed():
             task.fail_action.do()
