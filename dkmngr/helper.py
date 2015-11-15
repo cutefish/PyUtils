@@ -213,12 +213,11 @@ class ExecDnsHelper(object):
     def __init__(self, execution):
         self.execution = execution
 
-    def setup_dns(self, execution):
-        ctns_tasks = self.get_ctns_tasks()
+    def setup_dns(self):
+        ctns_tasks = self.get_containers()
         mapping = self.assign_ip(ctns_tasks)
         img_task = self.add_dns_image(mapping)
-        ctns_task = self.add_dns_container(execution, img_task)
-        self.add_dependency(execution, ctn_task, containers)
+        self.add_dns_container(mapping, img_task, ctns_tasks)
 
     def get_containers(self):
         ctns_tasks = []
@@ -237,14 +236,25 @@ class ExecDnsHelper(object):
             for name in names:
                 ip = iplocator.next_ip()
                 mapping[name] = ip
-            task.set_ips(ip)
+                ips.append(ip)
+            task.set_ip_addresses(ips)
         return mapping
 
     def add_dns_image(self, mapping):
         img_task = DnsImageBuildTask(self.execution, mapping)
+        self.execution.add_task(img_task)
+        return img_task
 
-    def add_dns_container(self, execution, img_task):
-        pass
-
-    def add_dependency(self, execution, ctn_task, containers):
-        pass
+    def add_dns_container(self, mapping, img_task, ctns_tasks):
+        run_task = ContainersRunTask(self.execution)
+        run_task.set_image(img_task.get_name())
+        run_task.set_name('dns-container')
+        run_task.set_ids([''])
+        run_task.set_name_pattern('dns')
+        run_task.set_sub_regex('')
+        self.execution.add_task(run_task)
+        self.execution.add_dependency(run_task, ctns_tasks)
+        run_task.set_ip_addresses([mapping['dns']])
+        for task in ctns_tasks:
+            task.add_depend(run_task)
+            task.set_dns(mapping['dns'])

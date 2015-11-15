@@ -1,3 +1,4 @@
+import re
 import subprocess
 
 class Shell(object):
@@ -103,7 +104,7 @@ class IPLocator(object):
         self.counter = [0, 1]
 
     def get_docker0_ip(self):
-        output = subprocess.check_output(shlex.split('ifconfig'))
+        output = subprocess.check_output(['ifconfig'])
         lines = output.split('\n')
         result = None
         for i, line in enumerate(lines):
@@ -111,13 +112,16 @@ class IPLocator(object):
                 inet_line= lines[i + 1]
                 regex = re.compile(
                     'inet addr:(?P<ip>[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)')
-                result = regex.match(inet_line).group('ip')
+                result = regex.search(inet_line).group('ip')
                 break
         if result is None:
             raise OSError('Cannot find docker interface.')
+        return result
 
     def next_ip(self):
-        curr = '.'.join([self.prefix, self.counter[0], self.counter[1]])
+        curr = '.'.join([self.prefix,
+                         str(self.counter[0]),
+                         str(self.counter[1])])
         self.inc_counter()
         if curr == self.docker0:
             return self.next_ip()

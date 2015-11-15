@@ -5,7 +5,8 @@ import shutil
 from utils import get_pretty_lines
 
 class Execution(object):
-    def __init__(self):
+    def __init__(self, code_dir):
+        self.code_dir = code_dir
         self.name = None
         self.tmpdir = None
         self.tasks = {} # name : task
@@ -57,6 +58,11 @@ class Execution(object):
             task.add_depend(deptask)
         if len(task.depnames) == 0:
             self.ready.append(task)
+
+    def add_dependency(self, task, deps):
+        if task not in self.depends:
+            self.depends[task] = []
+        self.depends[task].extend(deps)
 
     def run(self):
         shutil.rmtree(self.get_tmpdir(), ignore_errors=True)

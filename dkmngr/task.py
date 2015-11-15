@@ -229,7 +229,7 @@ class ContainersRunTask(Task):
         self.ids = vals
         names = []
         for val in self.ids:
-            name = '{0}-{1}'.format(self.name, val)
+            name = '{0}-{1}'.format(self.get_name(), val)
             names.append(name)
         self.ctn_names = names
 
@@ -247,6 +247,9 @@ class ContainersRunTask(Task):
                              format(self.ids, pattern, names))
         self.ctn_names = sorted(names)
 
+    def set_dns(self, dns):
+        self.dns_address = dns
+
     def add_volume_mapping(self, src, dst):
         if not os.path.isdir(src):
             raise OSError('Cannot find directory: {0}'.format(src))
@@ -256,7 +259,7 @@ class ContainersRunTask(Task):
         self.envs.append('"{0}={1}"'.format(name, value))
 
     def set_ip_addresses(self, ips):
-        self.ip_addresses = ips
+        self.ip_addresses = list(ips)
         self.set_mac_addresses()
 
     def set_mac_addresses(self):
@@ -265,7 +268,7 @@ class ContainersRunTask(Task):
             parts = ip.split('.')
             parts = map(lambda x : x.zfill(3), parts)
             chars = ''.join(parts)
-            parts = textwrap.wrap(chars)
+            parts = textwrap.wrap(chars, 2)
             mac = ':'.join(parts)
             mac_addresses.append(mac)
         self.mac_addresses = mac_addresses
@@ -291,6 +294,10 @@ class ContainersRunTask(Task):
                 volumes(self.sublst(self.volumes, val)).\
                 envs(self.sublst(self.envs, val)).\
                 name(name)
+            if len(self.ip_addresses) != 0:
+                docker_run.envs(['"{0}={1}"'.
+                                 format('desired.ip.address',
+                                        self.ip_addresses[i])])
             if len(self.mac_addresses) != 0:
                 docker_run.mac(self.mac_addresses[i])
             retcode = docker_run.run(self.image, self.out_msgs, self.err_msgs)
@@ -306,6 +313,30 @@ class ContainersRunTask(Task):
 
 class DnsImageBuildTask(ImageBuildTask):
     def __init__(self, execution, mapping):
-        super(ImageBuildTask, self).__init__(execution)
+        super(DnsImageBuildTask, self).__init__(execution)
         self.mapping = mapping
-        self.set_install(['bind9 host'])
+        self.dns_setup_file = 'dns_setup.sh'
+        self.ip_config_file = 'ipconfig.py'
+        self.set_name('dns-image')
+
+    def run_internal(self):
+        os.makedirs(self.get_tmpdir())
+        self.set_install(['dnsmasq','host'])
+        self.set_startup_scripts([self.ip_config_file,
+                                  self.dns_setup_file])
+        self.copy_to_startupdir(['{0}/example/scripts/{1}'.
+                                 format(self.execution.code_dir,
+                                        self.ip_config_file)])
+        self.generate_dns_setup()
+        self.generate_dockerfile()
+        self.generate_startup_file()
+        self.build_image()
+
+    def generate_dns_setup(self):
+        dns_file = '{0}/{1}'.format(self.get_tmpdir(), self.dns_setup_file)
+        with open(dns_file, 'w') as writer:
+            writer.write('#!/bin/bash\n')
+            for hostname, ipaddr in self.mapping.iteritems():
+                writer.write('echo "{0}\t{1}\n" >> /etc/hosts')
+            writer.write('cat /etc/hosts')
+            writer.write('service dnsmasq restart')
