@@ -16,6 +16,7 @@ class Execution(object):
         self.fail = set([])
         self.stopped = False
         self.logger = logging.getLogger('exec')
+        self.proxy = {}
 
     def set_name(self, name):
         self.name = name
@@ -30,6 +31,15 @@ class Execution(object):
         if self.tmpdir is not None:
             return self.tmpdir
         return '/tmp/{0}'.format(self.name)
+
+    def set_proxy(self, proxy):
+        self.proxy.update(proxy)
+
+    def get_proxy(self):
+        return self.proxy
+
+    def get_tasks(self):
+        return self.tasks.values()
 
     def add_task(self, task):
         name = task.get_name()

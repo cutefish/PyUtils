@@ -1,9 +1,8 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python
 
 import os
 import re
 import shlex
-import socket
 import subprocess
 import sys
 
@@ -64,7 +63,7 @@ def parse_routes(output):
     return routes
 
 
-def get_ip(host, ip):
+def get_ip(ip):
     desired_ip = os.environ['host.desired.ip']
     newparts = desired_ip.split('.')
     oldparts = ip.split('.')
@@ -75,6 +74,7 @@ def get_ip(host, ip):
         else:
             parts.append(newparts[i])
     return '.'.join(parts)
+
 
 def set_host_ip(newip, oldip, interface, mask, routes):
     subprocess.check_call(shlex.split

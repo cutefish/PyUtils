@@ -1,6 +1,9 @@
 import logging
 import os
+import re
 import shutil
+import stat
+import textwrap
 import traceback
 
 from execution import StopExecutionAction
@@ -58,7 +61,7 @@ class Task(object):
             self.status = Task.RUNNING
             self.run_internal()
             self.status = Task.SUCCEEDED
-        except Exception as e:
+        except:
             self.err_msgs.extend(traceback.format_exc().split('\n'))
             self.status = Task.FAILED
 
@@ -95,15 +98,16 @@ class ImageBuildTask(Task):
         self.mkdir_lines = ['RUN mkdir {0}'.format(self.startup_dir)]
         self.copy_lines = []
         self.startup_lines = []
+        self.set_proxy(self.execution.get_proxy())
 
     def set_proxy(self, proxy):
-        if proxy['http'] is not None:
+        if proxy.get('http') is not None:
             self.proxy_lines.append('ENV http_proxy {0}'.format(proxy['http']))
-        if proxy['https'] is not None:
+        if proxy.get('https') is not None:
             self.proxy_lines.append('ENV https_proxy {0}'.format(proxy['https']))
-        if (proxy['https'] is None) and (proxy['http'] is not None):
+        if (proxy.get('https') is None) and (proxy.get('http') is not None):
             self.proxy_lines.append('ENV https_proxy {0}'.format(proxy['http']))
-        if proxy['http'] is not None:
+        if proxy.get('http') is not None:
             self.proxy_lines.append(
                 'RUN echo "Acquire::http::Proxy \"{0}\";" > /etc/apt/apt.conf'.
                 format(proxy['http']))
@@ -122,6 +126,9 @@ class ImageBuildTask(Task):
         self.startup_lines.append(
             'ENTRYPOINT ["sh", "{0}{1}"]'. format(self.startup_dir,
                                                   self.startup_script))
+        self.copy_lines.append('COPY {0} {1}'.
+                               format(self.startup_script,
+                                      self.startup_dir))
 
     def copy_to_startupdir(self, paths):
         for path in paths:
@@ -159,7 +166,8 @@ class ImageBuildTask(Task):
         self.log(logging.INFO, 'Generate docker file.')
         lines = self.get_dockerfile_lines()
         with open('{0}/Dockerfile'.format(self.get_tmpdir()), 'w') as writer:
-            writer.writelines(lines)
+            for line in lines:
+                writer.write(line + '\n')
 
     def get_dockerfile_lines(self):
         lines = []
@@ -179,10 +187,13 @@ class ImageBuildTask(Task):
 
     def generate_startup_file(self):
         self.log(logging.INFO, 'Generate startup script.')
-        with open('{0}/{1}'.format(self.get_tmpdir(),
-                                   self.startup_script),
-                  'w') as writer:
-            writer.writelines(self.startup_script_lines)
+        startup_file = '{0}/{1}'.format(self.get_tmpdir(),
+                                        self.startup_script)
+        with open(startup_file, 'w') as writer:
+            for line in self.startup_script_lines:
+                writer.write(line + '\n')
+        st = os.stat(startup_file)
+        os.chmod(startup_file, st.st_mode | stat.S_IEXEC)
 
     def build_image(self):
         self.log(logging.INFO, 'Build image.')
@@ -200,48 +211,101 @@ class ContainersRunTask(Task):
     def __init__(self, execution):
         super(ContainersRunTask, self).__init__(execution)
         self.log_prefix = 'containers'
-        self.range_regex = ''
-        self.range_vals = ['']
+        self.ids = None
+        self.sub_regex = ''
         self.image = None
-        self.name_pattern = None
+        self.ctn_names = []
         self.volumes = []
         self.envs = []
         self.ip_addresses = []
         self.mac_addresses = []
         self.dns_address = None
 
-    def set_range_regex(self, regex):
-        self.range_regex = regex
-
-    def set_range_vals(self, vals):
-        self.range_vals = vals
-
     def set_image(self, image):
         self.image = image
         self.set_depnames([image])
 
+    def set_ids(self, vals):
+        self.ids = vals
+        names = []
+        for val in self.ids:
+            name = '{0}-{1}'.format(self.name, val)
+            names.append(name)
+        self.ctn_names = names
+
+    def set_sub_regex(self, var):
+        self.sub_regex = '\${0}'.format(var)
+
     def set_name_pattern(self, pattern):
-        self.name_pattern = pattern
+        names = set([])
+        for val in self.ids:
+            name = re.sub(self.sub_regex, str(val), pattern)
+            names.add(name)
+        if len(names) != len(self.ids):
+            raise ValueError('Pattern cannot match ids after replacement.'
+                             'ids={0} pattern={1} names={2}'.
+                             format(self.ids, pattern, names))
+        self.ctn_names = sorted(names)
 
     def add_volume_mapping(self, src, dst):
+        if not os.path.isdir(src):
+            raise OSError('Cannot find directory: {0}'.format(src))
         self.volumes.append('{0}:{1}:ro'.format(src, dst))
 
     def add_env(self, name, value):
         self.envs.append('"{0}={1}"'.format(name, value))
 
+    def set_ip_addresses(self, ips):
+        self.ip_addresses = ips
+        self.set_mac_addresses()
+
+    def set_mac_addresses(self):
+        mac_addresses = []
+        for ip in self.ip_addresses:
+            parts = ip.split('.')
+            parts = map(lambda x : x.zfill(3), parts)
+            chars = ''.join(parts)
+            parts = textwrap.wrap(chars)
+            mac = ':'.join(parts)
+            mac_addresses.append(mac)
+        self.mac_addresses = mac_addresses
+
+    def get_num_containers(self):
+        return len(self.ids)
+
+    def get_container_names(self):
+        return self.ctn_names
+
     def run_internal(self):
-        for i, val in enumerate(self.range_vals):
-            name = re.sub(self.range_regex, str(val), self.name_pattern)
+        for i, val in enumerate(self.ids):
+            name = self.ctn_names[i]
             tmpdir = ('{0}/containers/{1}'.
                       format(self.execution.get_tmpdir(),
                              name))
             os.makedirs(tmpdir)
             docker_run = DockerRun()
             self.log(logging.INFO, 'Starting container: {0}'.format(name))
-            retcode = docker_run.detach().hostname(name).\
+            docker_run.detach().hostname(name).\
                 add_cap('NET_ADMIN').add_cap('SYS_ADMIN').\
-                mac(self.mac_addresses[i]).dns(self.dns_address).\
-                volumes(self.volumes).envs(self.envs).\
-                name(name).run(self.image, self.out_msgs, self.err_msgs)
+                dns(self.dns_address).\
+                volumes(self.sublst(self.volumes, val)).\
+                envs(self.sublst(self.envs, val)).\
+                name(name)
+            if len(self.mac_addresses) != 0:
+                docker_run.mac(self.mac_addresses[i])
+            retcode = docker_run.run(self.image, self.out_msgs, self.err_msgs)
             if retcode != 0:
                 raise ValueError('Docker run faild: {0}'.format(name))
+
+    def sublst(self, lst, val):
+        result = []
+        for e in lst:
+            result.append(re.sub(self.sub_regex, str(val), e))
+        return result
+
+
+class DnsImageBuildTask(ImageBuildTask):
+    def __init__(self, execution, mapping):
+        super(ImageBuildTask, self).__init__(execution)
+        self.mapping = mapping
+        self.set_install(['bind9 host'])

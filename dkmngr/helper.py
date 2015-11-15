@@ -3,7 +3,9 @@ import re
 import xml.etree.ElementTree as ET
 
 from task import ImageBuildTask
+from task import DnsImageBuildTask
 from task import ContainersRunTask
+from docker import IPLocator
 
 
 class Attribs(dict):
@@ -79,11 +81,17 @@ class ExecutionHandler(object):
         prop_attribs = Attribs(self.properties)
         prop_attribs.add_required('name')
         prop_attribs.add_required('value')
+        proxy_attribs = Attribs(self.properties)
+        proxy_attribs.add_optional('http')
+        proxy_attribs.add_optional('https')
         for elem in root:
             if elem.tag == 'property':
                 prop_attribs.read_elem(elem)
                 self.properties[prop_attribs['name']] = \
                     prop_attribs['value']
+            elif elem.tag == 'proxy':
+                proxy_attribs.read_elem(elem)
+                execution.set_proxy(proxy_attribs)
             elif elem.tag == 'image':
                 task = ImageBuildTask(execution)
                 handler = ImageHandler(self.properties)
@@ -114,9 +122,6 @@ class TaskElemHandler(object):
 class ImageHandler(TaskElemHandler):
     def __init__(self, properties):
         super(ImageHandler, self).__init__(properties)
-        self.proxy_attr = Attribs(properties)
-        self.proxy_attr.add_optional('http')
-        self.proxy_attr.add_optional('https')
         self.install_attr = Attribs(properties)
         self.install_attr.add_required('packages', Attribs.str2list)
         self.startup_attr = Attribs(properties)
@@ -131,10 +136,7 @@ class ImageHandler(TaskElemHandler):
     def handle(self, root, img_task):
         super(ImageHandler, self).handle(root, img_task)
         for elem in root:
-            if elem.tag == 'proxy':
-                self.proxy_attr.read_elem(elem)
-                img_task.set_proxy(self.proxy_attr)
-            elif elem.tag == 'install':
+            if elem.tag == 'install':
                 self.install_attr.read_elem(elem)
                 img_task.set_install(self.install_attr['packages'])
             elif elem.tag == 'startup':
@@ -175,11 +177,10 @@ class ContainersHandler(TaskElemHandler):
     def __init__(self, properties):
         super(ContainersHandler, self).__init__(properties)
         self.attribs.add_required('image')
-        self.range_attr = Attribs(properties)
-        self.range_attr.add_required('var')
-        self.range_attr.add_required('expr')
-        self.name_attr = Attribs(properties)
-        self.name_attr.add_required('pattern')
+        self.attribs.add_required('ids', lambda x : list(eval(x)))
+        self.attribs.add_optional('subvar')
+        self.container_attr = Attribs(properties)
+        self.container_attr.add_required('name')
         self.volume_attr = Attribs(properties)
         self.volume_attr.add_required('src', Attribs.str2path)
         self.volume_attr.add_required('dst', Attribs.str2path)
@@ -190,14 +191,12 @@ class ContainersHandler(TaskElemHandler):
     def handle(self, root, ctn_task):
         super(ContainersHandler, self).handle(root, ctn_task)
         ctn_task.set_image(self.attribs['image'])
+        ctn_task.set_ids(self.attribs['ids'])
+        ctn_task.set_sub_regex(self.attribs['subvar'])
         for elem in root:
-            if elem.tag == 'range':
-                self.range_attr.read_elem(elem)
-                ctn_task.set_range_regex('\${0}'.format(self.range_attr['var']))
-                ctn_task.set_range_vals(eval(self.range_attr['expr']))
-            elif elem.tag == 'name':
-                self.name_attr.read_elem(elem)
-                ctn_task.set_name_pattern(self.name_attr['pattern'])
+            if elem.tag == 'container':
+                self.container_attr.read_elem(elem)
+                ctn_task.set_name_pattern(self.container_attr['name'])
             elif elem.tag == 'volume':
                 self.volume_attr.read_elem(elem)
                 ctn_task.add_volume_mapping(self.volume_attr['src'],
@@ -211,5 +210,41 @@ class ContainersHandler(TaskElemHandler):
 
 
 class ExecDnsHelper(object):
+    def __init__(self, execution):
+        self.execution = execution
+
     def setup_dns(self, execution):
+        ctns_tasks = self.get_ctns_tasks()
+        mapping = self.assign_ip(ctns_tasks)
+        img_task = self.add_dns_image(mapping)
+        ctns_task = self.add_dns_container(execution, img_task)
+        self.add_dependency(execution, ctn_task, containers)
+
+    def get_containers(self):
+        ctns_tasks = []
+        for task in self.execution.get_tasks():
+            if isinstance(task, ContainersRunTask):
+                ctns_tasks.append(task)
+        return ctns_tasks
+
+    def assign_ip(self, ctns_tasks):
+        mapping = {}
+        iplocator = IPLocator()
+        mapping['dns'] = iplocator.next_ip()
+        for task in ctns_tasks:
+            names = task.get_container_names()
+            ips = []
+            for name in names:
+                ip = iplocator.next_ip()
+                mapping[name] = ip
+            task.set_ips(ip)
+        return mapping
+
+    def add_dns_image(self, mapping):
+        img_task = DnsImageBuildTask(self.execution, mapping)
+
+    def add_dns_container(self, execution, img_task):
+        pass
+
+    def add_dependency(self, execution, ctn_task, containers):
         pass

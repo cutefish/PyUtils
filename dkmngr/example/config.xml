@@ -3,31 +3,29 @@
     <property name="container.kvlib" value="/kv/lib"/>
     <property name="container.bin" value="/kv/bin"/>
     <property name="script.path" value="example/scripts"/>
+    <proxy http="www-proxy.us.oracle.com:80"/>
     <image name="server-image">
-        <proxy http="www-proxy.us.oracle.com:80"/>
         <install packages="openjdk-7-jdk, python2.7, host"/>
         <startup scripts="ipconfig.py, snaboot.py" paths="${script.path}"/>
         <volume paths="${container.kvlib}"/>
     </image>
     <image name="client-image">
-        <proxy http="www-proxy.us.oracle.com:80"/>
         <install packages="openjdk-7-jdk, python2.7, host"/>
         <startup scripts="ipconfig.py, deploy.py" paths="${script.path}"/>
         <volume paths="${container.kvlib}"/>
         <copy src="${script.path}/kv/test.py" dst="${container.bin}"/>
     </image>
-    <containers name="servers" image="server-image">
-        <range var="i" expr="range(1, 4)"/>
-        <name pattern="server$i"/>
+    <containers name="servers" image="server-image" ids="range(1, 4)"
+        subvar="i">
+        <container name="sna$i"/>
         <volume src="${host.kvlib}" dst="${container.kvlib}"/>
-        <env name="host.desired.ip" value="*.*.1.$i"/>
+        <env name="envtest.id" value="sna.$i"/>
         <env name="kv.lib" value="${container.kvlib}"/>
     </containers>
-    <containers name="clients" image="client-image" depends="servers">
-        <name pattern="client"/>
-        <volume src="${kvlib}" dst="${container.kvlib}"/>
-        <env name="host.desired.ip" value="*.*.1.100"/>
+    <containers name="clients" image="client-image"
+        ids="[0]" depends="servers">
+        <volume src="${host.kvlib}" dst="${container.kvlib}"/>
         <env name="kv.lib" value="${container.kvlib}"/>
-        <env name="server.hostname.pattern" value="server$i; $i; range(1, 4)"/>
+        <env name="sna.range" value="range(1, 4)"/>
     </containers>
 </execution>
