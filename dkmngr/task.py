@@ -327,6 +327,9 @@ class DnsImageBuildTask(ImageBuildTask):
         self.copy_to_startupdir(['{0}/example/scripts/{1}'.
                                  format(self.execution.code_dir,
                                         self.ip_config_file)])
+        self.copy_lines.append('COPY {0} {1}'.
+                               format(self.dns_setup_file,
+                                      self.startup_dir))
         self.generate_dns_setup()
         self.generate_dockerfile()
         self.generate_startup_file()
@@ -337,6 +340,7 @@ class DnsImageBuildTask(ImageBuildTask):
         with open(dns_file, 'w') as writer:
             writer.write('#!/bin/bash\n')
             for hostname, ipaddr in self.mapping.iteritems():
-                writer.write('echo "{0}\t{1}\n" >> /etc/hosts')
-            writer.write('cat /etc/hosts')
-            writer.write('service dnsmasq restart')
+                writer.write('echo "{0}\t{1}" >> /etc/hosts\n'.
+                             format(ipaddr, hostname))
+            writer.write('cat /etc/hosts\n')
+            writer.write('service dnsmasq restart\n')
