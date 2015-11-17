@@ -1,30 +1,59 @@
 <execution name="kvdeploy">
+    <!-- This execution deploys a kvstore with a group servers and a client.-->
+
+    <!-- The direcotry of kv lib on the host. -->
     <property name="host.kvlib" value="/home/xiaoy/myproj/kv-cluster/lib"/>
+    <!-- The direcotry of kv lib on the container. -->
     <property name="container.kvlib" value="/kv/lib"/>
+    <!-- A direcotry of containing binaries to run in the containers. -->
     <property name="container.bin" value="/kv/bin"/>
+    <!-- The directory contains scripts to run in the containers.-->
     <property name="script.path" value="example/scripts"/>
+    <!-- The proxy of containers.-->
     <proxy http="www-proxy.us.oracle.com:80"/>
+
+    <!-- Images for the servers which will setup the StorageNodeAgent upon
+         startup. -->
     <image name="server-image">
         <install packages="openjdk-7-jdk, python2.7, host"/>
         <startup scripts="ipconfig.py, snaboot.py" paths="${script.path}"/>
         <volume paths="${container.kvlib}"/>
     </image>
+
+    <!-- Images for the client which will deploy the cluster upon startup. -->
     <image name="client-image">
         <install packages="openjdk-7-jdk, python2.7, host"/>
         <startup scripts="ipconfig.py, deploy.py" paths="${script.path}"/>
         <volume paths="${container.kvlib}"/>
         <copy src="${script.path}/kv/test.py" dst="${container.bin}"/>
     </image>
-    <containers name="servers" image="server-image" ids="range(1, 4)">
+
+    <!-- Launch a group of storage nodes. Environment variables kv_* are used
+         in snaboot.py upon startup. -->
+    <containers name="servers" image="server-image" ids="range(1, 4)" wait="5">
         <container name="sna${id}"/>
         <volume src="${host.kvlib}" dst="${container.kvlib}"/>
-        <env name="envtest.id" value="sna.${id}"/>
-        <env name="kv.lib" value="${container.kvlib}"/>
+        <env name="kv_lib" value="${container.kvlib}"/>
+        <env name="kv_sna_capacity" value="2"/>
     </containers>
-    <containers name="clients" image="client-image"
-        ids="[0]" depends="servers">
+
+    <!-- Launch a client node. This task should be launched after the servers
+         task. Environment variables kv_* are used by deploy.py upon
+         startup. -->
+    <containers name="clients" image="client-image" ids="[0]"
+        depends="servers" wait="30">
         <volume src="${host.kvlib}" dst="${container.kvlib}"/>
-        <env name="kv.lib" value="${container.kvlib}"/>
-        <env name="sna.range" value="range(1, 4)"/>
+        <env name="kv_lib" value="${container.kvlib}"/>
+        <env name="kv_snas" value="['sna{0}'.format(i) for i in range(1, 4)]"/>
+        <env name="kv_sna_rf" value="2"/>
     </containers>
+
+    <!-- Execute a test script on client. -->
+    <exec name="test_store" containers="clients">
+        <run cmd="${container.bin}/test.py"/>
+        <expect value="Connected to mystore"/>
+        <expect value="Verification complete, 0 violations"/>
+        <expect value="xiao"/>
+        <expect value="xiaotable"/>
+    </exec>
 </execution>

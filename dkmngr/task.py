@@ -261,6 +261,7 @@ class ContainersRunTask(Task):
         super(ContainersRunTask, self).__init__(execution)
         self.log_prefix = 'containers'
         self.ids = None
+        self.wait = 0
         self.sub_regex = '\${id}'
         self.image = None
         self.ctn_names = []
@@ -282,6 +283,9 @@ class ContainersRunTask(Task):
             name = '{0}-{1}'.format(self.get_name(), val)
             names.append(name)
         self.ctn_names = names
+
+    def set_wait(self, val):
+        self.wait = val
 
     def set_name_pattern(self, pattern):
         names = set([])
@@ -353,7 +357,7 @@ class ContainersRunTask(Task):
             runs.append((docker_run, tmpdir))
             if retcode != 0:
                 raise ValueError('Docker run faild: {0}'.format(name))
-        time.sleep(5)
+        time.sleep(self.wait)
         for run, tmpdir in runs:
             run.logs(tmpdir)
 
@@ -409,9 +413,9 @@ class ContainersCmdTask(Task):
             for cmd in self.commands:
                 cmd = re.sub(self.sub_regex, str(curr_id), cmd)
                 docker_exec.run(cmd, out, err)
-            self.pass_expect_or_die(out, str(curr_id))
             self.out_msgs.extend(out)
             self.err_msgs.extend(err)
+            self.pass_expect_or_die(out, str(curr_id))
 
     def pass_expect_or_die(self, out, curr_id):
         out_idx = 0
@@ -426,5 +430,5 @@ class ContainersCmdTask(Task):
         if expect_idx < len(self.expects):
             expect_regex = self.expects[expect_idx]
             expect_regex = re.sub(self.sub_regex, curr_id, expect_regex)
-            raise ValueError('Out not matchin expected. Unmatched: {0}, out:{1}'.
+            raise ValueError('Out not matching expected. Unmatched: {0}; out:{1}'.
                              format(expect_regex, get_pretty_lines(out, 20)))

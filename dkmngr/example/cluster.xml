@@ -2,19 +2,22 @@
     <!-- This execution launches a group of containers and then check if they
          have the correct hostname-ip mapping and environment variables. -->
 
-    <!-- The directory contains scripts to run in the container.-->
+    <!-- The directory contains scripts to run in the containers.-->
     <property name="script.path" value="example/scripts"/>
-
     <!-- The proxy of containers.-->
     <proxy http="www-proxy.us.oracle.com:80"/>
 
-    <!-- A docker image.-->
+    <!-- Build a docker image. Containers of this image will run ipconfig.py
+         and host_status.sh upon startup-->
     <image name="server-image">
         <install packages="python2.7, host"/>
         <startup scripts="ipconfig.py, host_status.sh" paths="${script.path}"/>
     </image>
 
-    <!-- A group of containers from server-image with ids [1, 2, 3].-->
+    <!-- Launch a group of containers from server-image with ids [1, 2, 3].
+         Containers of this group will have name and hostname set to sna${id}.
+         They also have an environment varaible dkmngr_cluster_id set to
+         ${id}.-->
     <containers name="servers" image="server-image" ids="range(1, 4)">
         <container name="sna${id}"/>
         <env name="dkmngr_cluster_id" value="${id}"/>

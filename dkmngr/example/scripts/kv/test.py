@@ -1,87 +1,38 @@
-#!/usr/bin/env python
+#!/usr/bin/python2.7
 
-def generate_deploy_script(nhosts, logfine):
-    lines = [
-        '\n',
-        'configure -name "mystore"\n',
-        '\n',
-        'plan deploy-zone -name mydc -rf 3 -wait\n',
-        'pool create -name mypool\n',
-        '\n',
-        'plan deploy-sn -znname mydc -host {0} -port 13000 -wait\n'
-        .format('server0.kv'),
-        'pool join -name mypool -sn sn1\n',
-        'plan deploy-admin -sn sn1 -port 7000 -wait\n',
-        '\n',
-    ]
-    if logfine:
-        lines.append(
-            'change-policy -params '
-            'loggingConfigProps='
-            '"oracle.kv.util.FileHandler.level=ALL;'
-            'oracle.kv.impl.level=FINE;'
-            'com.sleepycat.je.util.FileHandler.level=ALL;'
-            'com.sleepycat.je.level=FINE"\n')
-    for i in range(1, nhosts):
-        lines.extend([
-            '\n',
-            ('plan deploy-sn -znname mydc -host server{0}.kv '
-             '-port 13000 -wait\n'.format(i)),
-            'pool join -name mypool -sn sn{0}\n'.format(i + 1),
-            'plan deploy-admin -sn sn{0} -port 7000 -wait\n'
-            .format(i + 1),
-            '\n',
-        ])
-    lines.extend([
-        'topology create -name mylayout -pool mypool -partitions 100\n',
-        'topology preview -name mylayout\n',
-        'plan deploy-topology -name mylayout -wait\n',
-        '\n',
-        'show plans\n',
-        'show topology\n',
-        'verify configuration\n',
-        '\n',
-    ])
-    with open('/tmp/deploy_script.kvs', 'w') as writer:
-        writer.writelines(lines)
+import os
+import shlex
+import subprocess
 
-
-def run_deploy_script():
-    print 'Deploy cluster.'
-    subprocess.call(shlex.split(
-        'java -Xmx256m -Xms256m -jar {kvjar} '
-        'runadmin '
-        '-host server0.kv '
-        '-port 13000 '
-        'load -file /tmp/deploy_script.kvs'
-        .format(kvjar=KV_JAR)))
-
-
-def run_test():
-    generate_test_script()
-    run_test_script()
+ENV_KV_LIB_KEY = 'kv_lib'
+ENV_KV_SNAS_KEY = 'kv_snas'
+ENV_KV_RF_KEY = 'kv_sna_rf'
+KV_LIB = os.environ[ENV_KV_LIB_KEY]
+KV_JAR = '{0}/kvstore.jar'.format(KV_LIB)
+KV_RF = os.environ[ENV_KV_RF_KEY]
+KV_SNAS = eval(os.environ[ENV_KV_SNAS_KEY])
 
 
 def generate_test_script():
     lines = [
         '\n',
-        'connect store -host {host} -port 13000 '
-        '-name "mystore"\n'.format(host='server0.kv'),
+        'connect store -host {0} -port 13000 '
+        '-name "mystore"\n'.format(KV_SNAS[0]),
         'verify configuration\n'
         '\n',
         'put kv -key /name -value xiao\n',
         'get kv -key /name\n',
         'aggregate kv -count\n',
         '\n',
-        'execute "DROP TABLE mytable"\n',
-        'execute "CREATE TABLE mytable ('
+        'execute "DROP TABLE xiaotable"\n',
+        'execute "CREATE TABLE xiaotable ('
         'item STRING,'
         'description STRING,',
         'count INTEGER,',
         'percentage DOUBLE,',
         'PRIMARY KEY (item)'
         ')"\n',
-        'aggregate table -name mytable -count\n',
+        'aggregate table -name xiaotable -count\n',
         'execute "SHOW TABLES"\n',
     ]
     with open('/tmp/test_script.kvs', 'w') as writer:
@@ -90,15 +41,14 @@ def generate_test_script():
 
 
 def run_test_script():
-    print 'Run test.'
-    sys.stdout.flush()
     subprocess.call(shlex.split(
         'java -jar {kvjar} '
         'runadmin '
         '-host {host} '
         '-port 13000 '
         'load -file /tmp/test_script.kvs'
-        .format(kvjar=KV_JAR, host='server0.kv')))
+        .format(kvjar=KV_JAR, host=KV_SNAS[0])))
 
 
-print 'test'
+generate_test_script()
+run_test_script()

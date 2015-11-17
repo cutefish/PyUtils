@@ -1,3 +1,5 @@
+A docker management tool
+
 * Install the latest Docker:
 
 (1) Please check the docker installation website:
@@ -9,4 +11,16 @@ sudo usermod -aG docker <user>
 (3) Set-up proxy and oracle dns for docker
 Add 'DOCKER_OPTS="--dns 10.209.76.198 --dns 10.209.76.197"'
 Add 'export http_proxy="http://www-proxy.us.oracle.com:80/"' in /etc/default/docker
+
+* Use the tool
+
+To run an execution, users write a configuration xml file and some scripts to
+run on containers. The configuration file specifies the work flow of the
+execution. Each execution includes tasks such as building image, launching
+groups of containers and executing commands on groups of containers. Tasks can
+have dependency such that a task will not run before all tasks that it depends
+on finish. See the example directory for the examples.
+
+To run:
+python main.py <config xml file>
 

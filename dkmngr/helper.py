@@ -185,6 +185,7 @@ class ContainersHandler(TaskElemHandler):
         super(ContainersHandler, self).__init__(properties)
         self.attribs.add_required('image')
         self.attribs.add_required('ids', lambda x : list(eval(x)))
+        self.attribs.add_optional('wait', 0, int)
         self.container_attr = Attribs(properties)
         self.container_attr.add_required('name')
         self.volume_attr = Attribs(properties)
@@ -198,6 +199,7 @@ class ContainersHandler(TaskElemHandler):
         super(ContainersHandler, self).handle(root, ctn_task)
         ctn_task.set_image(self.attribs['image'])
         ctn_task.set_ids(self.attribs['ids'])
+        ctn_task.set_wait(self.attribs['wait'])
         for elem in root:
             if elem.tag == 'container':
                 self.container_attr.read_elem(elem)
