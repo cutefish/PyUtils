@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2.7
 
 import os
 import re
@@ -11,7 +11,8 @@ def config_host_ip():
     interface, oldip, mask, routes = get_current_info()
     newip = get_ip(oldip)
     set_host_ip(newip, oldip, interface, mask, routes)
-    set_etc_hosts(newip)
+    set_etc_hosts(oldip, newip)
+    get_current_info()
     sys.stdout.flush()
 
 
@@ -21,7 +22,6 @@ def get_current_info():
     output = subprocess.check_output(shlex.split('ip route list'))
     routes = parse_routes(output)
     info = interface, ip, mask, routes
-    print 'Current info: {0}'.format((info))
     return info
 
 
@@ -64,7 +64,7 @@ def parse_routes(output):
 
 
 def get_ip(ip):
-    desired_ip = os.environ['host.desired.ip']
+    desired_ip = os.environ['host.desired.ip.address']
     newparts = desired_ip.split('.')
     oldparts = ip.split('.')
     parts = []
@@ -87,21 +87,17 @@ def set_host_ip(newip, oldip, interface, mask, routes):
             continue
         subprocess.check_call(shlex.split
                               ('ip route add {0}'.format(route)))
-    print 'Set new IP address.'
     subprocess.check_call(shlex.split('ifconfig'))
     subprocess.check_call(shlex.split('ip route list'))
 
 
-def set_etc_hosts(ip):
+def set_etc_hosts(oldip, newip):
     lines = []
     with open('/etc/hosts', 'r') as reader:
         lines.extend(reader.readlines())
-    ipregex = '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'
     for i, line in enumerate(lines):
-        if ip in line:
-            lines[i] = re.sub(ipregex, ip, line)
-            print ('changed [{0}] to [{1}]\n'.
-                   format(line.strip(), lines[i].strip()))
+        if oldip in line:
+            lines[i] = re.sub(oldip, newip, line)
             break
     with open('/tmp/hosts', 'w') as writer:
         writer.writelines(lines)
@@ -110,7 +106,6 @@ def set_etc_hosts(ip):
     except:
         pass
     subprocess.check_call(shlex.split('cp /tmp/hosts /etc/hosts'))
-    print 'Set new etc hosts'
     subprocess.check_call(shlex.split('cat /etc/hosts'))
 
 

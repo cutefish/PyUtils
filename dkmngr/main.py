@@ -9,8 +9,7 @@ from execution import Execution
 
 def main():
     logging_config()
-    src = sys.argv[1]
-    cfg_file = '{0}/config.xml'.format(src)
+    cfg_file = sys.argv[1]
     code_dir = os.path.dirname(
         os.path.abspath(inspect.getfile(inspect.currentframe())))
     execution = Execution(code_dir)

@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from task import ImageBuildTask
 from task import DnsImageBuildTask
 from task import ContainersRunTask
+from task import ContainersCmdTask
 from docker import IPLocator
 
 
@@ -102,6 +103,11 @@ class ExecutionHandler(object):
                 handler = ContainersHandler(self.properties)
                 handler.handle(elem, task)
                 execution.add_task(task)
+            elif elem.tag == 'exec':
+                task = ContainersCmdTask(execution)
+                handler = ContainersCmdHandler(self.properties)
+                handler.handle(elem, task)
+                execution.add_task(task)
             else:
                 raise SyntaxError('Unknown tag {0} in execution configure.'.
                                   format(elem.tag))
@@ -153,7 +159,8 @@ class ImageHandler(TaskElemHandler):
                 self.copy_attr.read_elem(elem)
                 img_task.copy(self.copy_attr['src'], self.copy_attr['dst'])
             else:
-                raise SyntaxError('Unknown tag {0} image task'.format(elem.tag))
+                raise SyntaxError('Unknown tag {0} for image task'.
+                                  format(elem.tag))
 
     def resolve_paths(self, basenames, search_paths):
         results = []
@@ -178,7 +185,6 @@ class ContainersHandler(TaskElemHandler):
         super(ContainersHandler, self).__init__(properties)
         self.attribs.add_required('image')
         self.attribs.add_required('ids', lambda x : list(eval(x)))
-        self.attribs.add_optional('subvar')
         self.container_attr = Attribs(properties)
         self.container_attr.add_required('name')
         self.volume_attr = Attribs(properties)
@@ -192,7 +198,6 @@ class ContainersHandler(TaskElemHandler):
         super(ContainersHandler, self).handle(root, ctn_task)
         ctn_task.set_image(self.attribs['image'])
         ctn_task.set_ids(self.attribs['ids'])
-        ctn_task.set_sub_regex(self.attribs['subvar'])
         for elem in root:
             if elem.tag == 'container':
                 self.container_attr.read_elem(elem)
@@ -212,6 +217,7 @@ class ContainersHandler(TaskElemHandler):
 class ExecDnsHelper(object):
     def __init__(self, execution):
         self.execution = execution
+        self.container_name = 'dns-server'
 
     def setup_dns(self):
         ctns_tasks = self.get_containers()
@@ -229,7 +235,7 @@ class ExecDnsHelper(object):
     def assign_ip(self, ctns_tasks):
         mapping = {}
         iplocator = IPLocator()
-        mapping['dns'] = iplocator.next_ip()
+        mapping[self.container_name] = iplocator.next_ip()
         for task in ctns_tasks:
             names = task.get_container_names()
             ips = []
@@ -250,11 +256,37 @@ class ExecDnsHelper(object):
         run_task.set_image(img_task.get_name())
         run_task.set_name('dns-container')
         run_task.set_ids([''])
-        run_task.set_name_pattern('dns')
-        run_task.set_sub_regex('')
+        run_task.set_name_pattern(self.container_name)
         self.execution.add_task(run_task)
         self.execution.add_dependency(run_task, ctns_tasks)
-        run_task.set_ip_addresses([mapping['dns']])
+        run_task.set_ip_addresses([mapping[self.container_name]])
         for task in ctns_tasks:
             task.add_depend(run_task)
-            task.set_dns(mapping['dns'])
+            task.set_dns(mapping[self.container_name])
+
+
+class ContainersCmdHandler(TaskElemHandler):
+    def __init__(self, properties):
+        super(ContainersCmdHandler, self).__init__(properties)
+        self.attribs.add_required('containers')
+        self.attribs.add_optional('ids', valfunc=eval)
+        self.run_attr = Attribs(properties)
+        self.run_attr.add_required('cmd')
+        self.expect_attr = Attribs(properties)
+        self.expect_attr.add_required('value')
+
+    def handle(self, root, cmd_task):
+        super(ContainersCmdHandler, self).handle(root, cmd_task)
+        self.attribs.read_elem(root)
+        cmd_task.set_containers(self.attribs['containers'])
+        cmd_task.set_ids(self.attribs['ids'])
+        for elem in root:
+            if elem.tag == 'run':
+                self.run_attr.read_elem(elem)
+                cmd_task.add_command(self.run_attr['cmd'])
+            elif elem.tag == 'expect':
+                self.expect_attr.read_elem(elem)
+                cmd_task.add_expect(self.expect_attr['value'])
+            else:
+                raise SyntaxError('Unknown tag {0} for containers cmd task'.
+                                  format(elem.tag))

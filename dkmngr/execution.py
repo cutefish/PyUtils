@@ -42,6 +42,9 @@ class Execution(object):
     def get_tasks(self):
         return self.tasks.values()
 
+    def get_task(self, name):
+        return self.tasks.get(name)
+
     def add_task(self, task):
         name = task.get_name()
         assert name is not None
@@ -74,7 +77,7 @@ class Execution(object):
             self.done_task(task)
 
     def done_task(self, task):
-        for msg in get_pretty_lines(task.get_out_msgs()):
+        for msg in get_pretty_lines(task.get_out_msgs(), 10):
             self.logger.info('\t[out]: {0}'.format(msg))
         for msg in get_pretty_lines(task.get_err_msgs(), 50):
             self.logger.info('\t[err]: {0}'.format(msg))

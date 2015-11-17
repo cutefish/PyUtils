@@ -4,10 +4,12 @@ import re
 import shutil
 import stat
 import textwrap
+import time
 import traceback
 
 from execution import StopExecutionAction
-from docker import DockerBuild, DockerRun
+from docker import DockerBuild, DockerRun, DockerExec
+from utils import get_pretty_lines
 
 class Task(object):
     QUEUED, RUNNING, SUCCEEDED, FAILED = range(4)
@@ -102,14 +104,18 @@ class ImageBuildTask(Task):
 
     def set_proxy(self, proxy):
         if proxy.get('http') is not None:
-            self.proxy_lines.append('ENV http_proxy {0}'.format(proxy['http']))
+            self.proxy_lines.append(
+                'ENV http_proxy http://{0}'.format(proxy['http']))
         if proxy.get('https') is not None:
-            self.proxy_lines.append('ENV https_proxy {0}'.format(proxy['https']))
+            self.proxy_lines.append(
+                'ENV https_proxy https://{0}'.format(proxy['https']))
         if (proxy.get('https') is None) and (proxy.get('http') is not None):
-            self.proxy_lines.append('ENV https_proxy {0}'.format(proxy['http']))
+            self.proxy_lines.append(
+                'ENV https_proxy https://{0}'.format(proxy['http']))
         if proxy.get('http') is not None:
             self.proxy_lines.append(
-                'RUN echo "Acquire::http::Proxy \"{0}\";" > /etc/apt/apt.conf'.
+                ('RUN echo "Acquire::http::Proxy \\"http://{0}\\";" '
+                 '> /etc/apt/apt.conf').
                 format(proxy['http']))
 
     def set_install(self, packages):
@@ -121,7 +127,7 @@ class ImageBuildTask(Task):
         self.startup_script_lines.append('#!/bin/bash')
         for script in scripts:
             self.startup_script_lines.append(
-                '{0}/{1}'. format(self.startup_dir, script))
+                '{0}{1}'. format(self.startup_dir, script))
         self.startup_script_lines.append('sleep {0}'.format(24 * 3600))
         self.startup_lines.append(
             'ENTRYPOINT ["sh", "{0}{1}"]'. format(self.startup_dir,
@@ -149,11 +155,14 @@ class ImageBuildTask(Task):
         self.mkdir_lines.append('RUN mkdir -p {0}'.format(dst))
         self.copy_files.append(src)
         path = os.path.basename(src.rstrip('/'))
-        self.copy_lines.append('COPY {0} {1}'.format(path, dst))
+        self.copy_lines.append('COPY {0} {1}/'.format(path, dst.rstrip('/')))
 
     def get_tmpdir(self):
         return '{0}/image/{1}'.format(self.execution.get_tmpdir(),
                                       self.get_name())
+
+    def get_image_name(self):
+        return '{0}/{1}'.format(self.execution.get_name(), self.get_name())
 
     def run_internal(self):
         os.makedirs(self.get_tmpdir())
@@ -198,7 +207,7 @@ class ImageBuildTask(Task):
     def build_image(self):
         self.log(logging.INFO, 'Build image.')
         docker_build = DockerBuild()
-        docker_build.tag(self.get_name())
+        docker_build.tag(self.get_image_name())
         retcode = docker_build.run(self.get_tmpdir(),
                                    self.out_msgs,
                                    self.err_msgs)
@@ -207,12 +216,52 @@ class ImageBuildTask(Task):
                              format(self.get_tmpdir()))
 
 
+class DnsImageBuildTask(ImageBuildTask):
+    def __init__(self, execution, mapping):
+        super(DnsImageBuildTask, self).__init__(execution)
+        self.mapping = mapping
+        self.dns_setup_file = 'dns_setup.sh'
+        self.ip_config_file = 'ipconfig.py'
+        self.set_name('dns-image')
+
+    def run_internal(self):
+        os.makedirs(self.get_tmpdir())
+        self.set_install(['python2.7', 'dnsmasq', 'host'])
+        self.set_startup_scripts([self.ip_config_file,
+                                  self.dns_setup_file])
+        self.copy_to_startupdir(['{0}/example/scripts/{1}'.
+                                 format(self.execution.code_dir,
+                                        self.ip_config_file)])
+        self.copy_lines.append('COPY {0} {1}'.
+                               format(self.dns_setup_file,
+                                      self.startup_dir))
+        self.generate_dns_setup()
+        self.gather_image_files()
+        self.generate_dockerfile()
+        self.generate_startup_file()
+        self.build_image()
+
+    def generate_dns_setup(self):
+        dns_file = '{0}/{1}'.format(self.get_tmpdir(), self.dns_setup_file)
+        with open(dns_file, 'w') as writer:
+            writer.write('#!/bin/bash\n')
+            for hostname, ipaddr in self.mapping.iteritems():
+                if 'dns' in hostname:
+                    continue
+                writer.write('echo "{0}\t{1}" >> /etc/hosts\n'.
+                             format(ipaddr, hostname))
+            writer.write('cat /etc/hosts\n')
+            writer.write('service dnsmasq restart\n')
+        st = os.stat(dns_file)
+        os.chmod(dns_file, st.st_mode | stat.S_IEXEC)
+
+
 class ContainersRunTask(Task):
     def __init__(self, execution):
         super(ContainersRunTask, self).__init__(execution)
         self.log_prefix = 'containers'
         self.ids = None
-        self.sub_regex = ''
+        self.sub_regex = '\${id}'
         self.image = None
         self.ctn_names = []
         self.volumes = []
@@ -222,7 +271,8 @@ class ContainersRunTask(Task):
         self.dns_address = None
 
     def set_image(self, image):
-        self.image = image
+        image_task = self.execution.get_task(image)
+        self.image = image_task.get_image_name()
         self.set_depnames([image])
 
     def set_ids(self, vals):
@@ -232,9 +282,6 @@ class ContainersRunTask(Task):
             name = '{0}-{1}'.format(self.get_name(), val)
             names.append(name)
         self.ctn_names = names
-
-    def set_sub_regex(self, var):
-        self.sub_regex = '\${0}'.format(var)
 
     def set_name_pattern(self, pattern):
         names = set([])
@@ -269,6 +316,7 @@ class ContainersRunTask(Task):
             parts = map(lambda x : x.zfill(3), parts)
             chars = ''.join(parts)
             parts = textwrap.wrap(chars, 2)
+            parts[0], parts[1] = ['00', '22']
             mac = ':'.join(parts)
             mac_addresses.append(mac)
         self.mac_addresses = mac_addresses
@@ -280,6 +328,7 @@ class ContainersRunTask(Task):
         return self.ctn_names
 
     def run_internal(self):
+        runs = []
         for i, val in enumerate(self.ids):
             name = self.ctn_names[i]
             tmpdir = ('{0}/containers/{1}'.
@@ -296,13 +345,17 @@ class ContainersRunTask(Task):
                 name(name)
             if len(self.ip_addresses) != 0:
                 docker_run.envs(['"{0}={1}"'.
-                                 format('desired.ip.address',
+                                 format('host.desired.ip.address',
                                         self.ip_addresses[i])])
             if len(self.mac_addresses) != 0:
                 docker_run.mac(self.mac_addresses[i])
             retcode = docker_run.run(self.image, self.out_msgs, self.err_msgs)
+            runs.append((docker_run, tmpdir))
             if retcode != 0:
                 raise ValueError('Docker run faild: {0}'.format(name))
+        time.sleep(5)
+        for run, tmpdir in runs:
+            run.logs(tmpdir)
 
     def sublst(self, lst, val):
         result = []
@@ -311,36 +364,67 @@ class ContainersRunTask(Task):
         return result
 
 
-class DnsImageBuildTask(ImageBuildTask):
-    def __init__(self, execution, mapping):
-        super(DnsImageBuildTask, self).__init__(execution)
-        self.mapping = mapping
-        self.dns_setup_file = 'dns_setup.sh'
-        self.ip_config_file = 'ipconfig.py'
-        self.set_name('dns-image')
+class ContainersCmdTask(Task):
+    def __init__(self, execution):
+        super(ContainersCmdTask, self).__init__(execution)
+        self.log_prefix = 'containers'
+        self.containers_name = None
+        self.containers = None
+        self.ids = None
+        self.sub_regex = '\${id}'
+        self.commands = []
+        self.expects = []
+
+    def set_containers(self, containers_name):
+        self.containers_name = containers_name
+        self.set_depnames([containers_name])
+        self.containers = self.execution.get_task(containers_name)
+        if self.containers is None:
+            raise ValueError('Cannot get containers: {0}'.
+                             format(containers_name))
+
+    def set_ids(self, ids):
+        self.ids = ids
+        if self.ids is None:
+            self.ids = self.containers.ids
+        for cid in self.ids:
+            if cid not in self.containers.ids:
+                raise ValueError('Id not match between '
+                                 'containers {0} and exec {1}'.
+                                 format(self.containers.get_name(),
+                                        self.get_name()))
+
+    def add_command(self, cmd):
+        self.commands.append(cmd)
+
+    def add_expect(self, expect):
+        self.expects.append(expect)
 
     def run_internal(self):
-        os.makedirs(self.get_tmpdir())
-        self.set_install(['dnsmasq','host'])
-        self.set_startup_scripts([self.ip_config_file,
-                                  self.dns_setup_file])
-        self.copy_to_startupdir(['{0}/example/scripts/{1}'.
-                                 format(self.execution.code_dir,
-                                        self.ip_config_file)])
-        self.copy_lines.append('COPY {0} {1}'.
-                               format(self.dns_setup_file,
-                                      self.startup_dir))
-        self.generate_dns_setup()
-        self.generate_dockerfile()
-        self.generate_startup_file()
-        self.build_image()
+        for i, name in enumerate(self.containers.get_container_names()):
+            docker_exec = DockerExec(name)
+            curr_id = self.ids[i]
+            out = []
+            err = []
+            for cmd in self.commands:
+                cmd = re.sub(self.sub_regex, str(curr_id), cmd)
+                docker_exec.run(cmd, out, err)
+            self.pass_expect_or_die(out, str(curr_id))
+            self.out_msgs.extend(out)
+            self.err_msgs.extend(err)
 
-    def generate_dns_setup(self):
-        dns_file = '{0}/{1}'.format(self.get_tmpdir(), self.dns_setup_file)
-        with open(dns_file, 'w') as writer:
-            writer.write('#!/bin/bash\n')
-            for hostname, ipaddr in self.mapping.iteritems():
-                writer.write('echo "{0}\t{1}" >> /etc/hosts\n'.
-                             format(ipaddr, hostname))
-            writer.write('cat /etc/hosts\n')
-            writer.write('service dnsmasq restart\n')
+    def pass_expect_or_die(self, out, curr_id):
+        out_idx = 0
+        expect_idx = 0
+        while (out_idx < len(out)) and (expect_idx < len(self.expects)):
+            out_string = out[out_idx]
+            expect_regex = self.expects[expect_idx]
+            expect_regex = re.sub(self.sub_regex, curr_id, expect_regex)
+            if re.search(expect_regex, out_string) is not None:
+                expect_idx += 1
+            out_idx += 1
+        if expect_idx < len(self.expects):
+            expect_regex = self.expects[expect_idx]
+            expect_regex = re.sub(self.sub_regex, curr_id, expect_regex)
+            raise ValueError('Out not matchin expected. Unmatched: {0}, out:{1}'.
+                             format(expect_regex, get_pretty_lines(out, 20)))

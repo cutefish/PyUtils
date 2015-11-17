@@ -1,15 +1,18 @@
 import re
+import shlex
 import subprocess
 
 class Shell(object):
     @classmethod
     def run(cls, cmd, out, err):
-        p = subprocess.Popen(['echo', '"{0}"'.format(' '.join(cmd[0:2]))],
+        p = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
-        out.extend(stdout.split('\n'))
-        err.extend(stderr.split('\n'))
+        if stdout != '':
+            out.extend(stdout.split('\n'))
+        if stderr != '':
+            err.extend(stderr.split('\n'))
         return p.returncode
 
 
@@ -75,6 +78,7 @@ class DockerRun(object):
         return self
 
     def run(self, image, out, err):
+        self.cleanup_exist()
         cmd = ['docker', 'run']
         if self._detach:
             cmd.append('--detach=true')
@@ -95,6 +99,38 @@ class DockerRun(object):
         cmd.append(image)
         out.append(' '.join(cmd))
         return Shell.run(cmd, out, err)
+
+    def cleanup_exist(self):
+        out = []
+        err = []
+        Shell.run(['docker', 'kill', self._name], out, err)
+        Shell.run(['docker', 'rm', self._name], out, err)
+
+    def logs(self, out_dir):
+        cmd = ['docker', 'logs']
+        cmd.append(self._name)
+        out = []
+        err = []
+        Shell.run(cmd, out, err)
+        out_file = '{0}/log.out'.format(out_dir)
+        err_file = '{0}/log.err'.format(out_dir)
+        with open(out_file, 'w') as writer:
+            for line in out:
+                writer.write(line + '\n')
+        with open(err_file, 'w') as writer:
+            for line in err:
+                writer.write(line + '\n')
+
+
+class DockerExec(object):
+    def __init__(self, name):
+        self.container_name = name
+
+    def run(self, cmd, out, err):
+        docker_cmd = ['docker', 'exec']
+        docker_cmd.append(self.container_name)
+        docker_cmd.extend(shlex.split(cmd))
+        Shell.run(docker_cmd, out, err)
 
 
 class IPLocator(object):

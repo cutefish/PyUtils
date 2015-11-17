@@ -15,11 +15,10 @@
         <volume paths="${container.kvlib}"/>
         <copy src="${script.path}/kv/test.py" dst="${container.bin}"/>
     </image>
-    <containers name="servers" image="server-image" ids="range(1, 4)"
-        subvar="i">
-        <container name="sna$i"/>
+    <containers name="servers" image="server-image" ids="range(1, 4)">
+        <container name="sna${id}"/>
         <volume src="${host.kvlib}" dst="${container.kvlib}"/>
-        <env name="envtest.id" value="sna.$i"/>
+        <env name="envtest.id" value="sna.${id}"/>
         <env name="kv.lib" value="${container.kvlib}"/>
     </containers>
     <containers name="clients" image="client-image"
